@@ -1,4 +1,5 @@
 import { Editor } from '@tiptap/react'
+import { Button } from './ui/button'
 
 interface AsideButtonsProps {
   editor: Editor
@@ -56,15 +57,17 @@ export default function AsideButtons({ editor }: AsideButtonsProps) {
   }
 
   return (
-    <div className="toolbar-group">
+    <div className="flex gap-0.5 border-r border-border pr-2 mr-2">
       {blockTypes.map(({ type, label, icon }) => (
-        <button
+        <Button
           key={type}
+          variant="ghost"
+          size="sm"
           onClick={() => insertBlock(type)}
           title={`Insert ${label} Block`}
         >
           {icon}
-        </button>
+        </Button>
       ))}
     </div>
   )

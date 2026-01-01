@@ -1,5 +1,14 @@
 import { useState } from 'react'
-import './ImportModal.css'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog'
+import { Button } from './ui/button'
+import { Textarea } from './ui/textarea'
 
 interface ImportModalProps {
   isOpen: boolean
@@ -9,8 +18,6 @@ interface ImportModalProps {
 
 export default function ImportModal({ isOpen, onClose, onImport }: ImportModalProps) {
   const [htmlContent, setHtmlContent] = useState('')
-
-  if (!isOpen) return null
 
   const handleImport = () => {
     if (htmlContent.trim()) {
@@ -26,40 +33,33 @@ export default function ImportModal({ isOpen, onClose, onImport }: ImportModalPr
   }
 
   return (
-    <div className="import-modal-overlay" onClick={handleClose}>
-      <div className="import-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="import-modal-header">
-          <h2>Import HTML</h2>
-          <button className="import-modal-close" onClick={handleClose} title="Close">
-            ×
-          </button>
-        </div>
-        <div className="import-modal-body">
-          <p className="import-modal-description">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Import HTML</DialogTitle>
+          <DialogDescription>
             Paste your HTML content below. The HTML will be imported into the editor and you can edit it normally.
-          </p>
-          <textarea
-            className="import-modal-textarea"
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <Textarea
+            className="flex-1 min-h-[200px] font-mono text-sm resize-y"
             value={htmlContent}
             onChange={(e) => setHtmlContent(e.target.value)}
             placeholder="Paste HTML here..."
             autoFocus
           />
         </div>
-        <div className="import-modal-footer">
-          <button className="import-modal-button import-modal-button-cancel" onClick={handleClose}>
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose}>
             Cancel
-          </button>
-          <button
-            className="import-modal-button import-modal-button-import"
-            onClick={handleImport}
-            disabled={!htmlContent.trim()}
-          >
+          </Button>
+          <Button onClick={handleImport} disabled={!htmlContent.trim()}>
             Import
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

@@ -1,747 +1,813 @@
-import { useState, useEffect, useRef } from 'react'
-import { Editor } from '@tiptap/react'
+import type { Editor } from "@tiptap/react";
+import { useEffect, useId, useState } from "react";
+import { parseRollCommand } from "../utils/rollCommandParser";
 import {
-  SKILLS,
-  ABILITIES,
-  createSkillCheck,
-  createAbilityCheck,
-  createSavingThrow,
-  createDamageRoll,
-  createAttackRoll,
-  createSpellReference,
-  createItemReference,
-  createCheckEnricher,
-  type AttackEnricherOptions,
-  type CheckEnricherOptions,
-} from '../utils/rollCommands'
-import { parseRollCommand } from '../utils/rollCommandParser'
-import './RollCommandButtons.css'
+	ABILITIES,
+	type AttackEnricherOptions,
+	type CheckEnricherOptions,
+	createAbilityCheck,
+	createAttackRoll,
+	createCheckEnricher,
+	createDamageRoll,
+	createItemReference,
+	createSavingThrow,
+	createSkillCheck,
+	createSpellReference,
+	SKILLS,
+} from "../utils/rollCommands";
+import { Button } from "./ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "./ui/dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "./ui/select";
 
 interface RollCommandButtonsProps {
-  editor: Editor
+	editor: Editor;
 }
 
-export default function RollCommandButtons({ editor }: RollCommandButtonsProps) {
-  const [showSkillMenu, setShowSkillMenu] = useState(false)
-  const [showAbilityMenu, setShowAbilityMenu] = useState(false)
-  const [showSaveMenu, setShowSaveMenu] = useState(false)
-  const [showAttackMenu, setShowAttackMenu] = useState(false)
-  const [showAttackDialog, setShowAttackDialog] = useState(false)
-  const [showCheckDialog, setShowCheckDialog] = useState(false)
-  const [checkDialogType, setCheckDialogType] = useState<'check' | 'skill' | 'tool'>('check')
-  const [attackOptions, setAttackOptions] = useState<AttackEnricherOptions>({})
-  const [checkOptions, setCheckOptions] = useState<CheckEnricherOptions>({})
-  const [editingPosition, setEditingPosition] = useState<number | null>(null)
-  const [isEditing, setIsEditing] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
+export default function RollCommandButtons({
+	editor,
+}: RollCommandButtonsProps) {
+	const [showAttackDialog, setShowAttackDialog] = useState(false);
+	const [showCheckDialog, setShowCheckDialog] = useState(false);
+	const [checkDialogType, setCheckDialogType] = useState<
+		"check" | "skill" | "tool"
+	>("check");
+	const [attackOptions, setAttackOptions] = useState<AttackEnricherOptions>({});
+	const [checkOptions, setCheckOptions] = useState<CheckEnricherOptions>({});
+	const [editingPosition, setEditingPosition] = useState<number | null>(null);
+	const [isEditing, setIsEditing] = useState(false);
+	const passiveCheckId = useId();
 
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowSkillMenu(false)
-        setShowAbilityMenu(false)
-        setShowSaveMenu(false)
-        setShowAttackMenu(false)
-      }
-    }
+	// Listen for roll command click events
+	useEffect(() => {
+		const handleRollCommandClick = (event: Event) => {
+			const customEvent = event as CustomEvent<{
+				command: string;
+				position: number;
+				node: unknown;
+			}>;
+			const { command, position } = customEvent.detail;
 
-    if (showSkillMenu || showAbilityMenu || showSaveMenu || showAttackMenu) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside)
-      }
-    }
-  }, [showSkillMenu, showAbilityMenu, showSaveMenu, showAttackMenu])
+			// Parse the command to determine type and options
+			const parsed = parseRollCommand(command);
+			if (!parsed) {
+				return;
+			}
 
-  // Listen for roll command click events
-  useEffect(() => {
-    const handleRollCommandClick = (event: Event) => {
-      const customEvent = event as CustomEvent<{
-        command: string
-        position: number
-        node: any
-      }>
-      const { command, position } = customEvent.detail
+			// Set editing state
+			setIsEditing(true);
+			setEditingPosition(position);
 
-      // Parse the command to determine type and options
-      const parsed = parseRollCommand(command)
-      if (!parsed) {
-        return
-      }
+			if (parsed.type === "attack") {
+				// Open attack dialog with parsed options
+				setAttackOptions(parsed.options as AttackEnricherOptions);
+				setShowAttackDialog(true);
+			} else {
+				// Open check dialog with parsed options
+				setCheckDialogType(parsed.type);
+				setCheckOptions(parsed.options as CheckEnricherOptions);
+				setShowCheckDialog(true);
+			}
+		};
 
-      // Set editing state
-      setIsEditing(true)
-      setEditingPosition(position)
+		window.addEventListener("rollCommandClick", handleRollCommandClick);
+		return () => {
+			window.removeEventListener("rollCommandClick", handleRollCommandClick);
+		};
+	}, []);
 
-      if (parsed.type === 'attack') {
-        // Open attack dialog with parsed options
-        setAttackOptions(parsed.options as AttackEnricherOptions)
-        setShowAttackDialog(true)
-      } else {
-        // Open check dialog with parsed options
-        setCheckDialogType(parsed.type)
-        setCheckOptions(parsed.options as CheckEnricherOptions)
-        setShowCheckDialog(true)
-      }
-    }
+	const insertRollCommand = (command: string) => {
+		// @ts-expect-error - setRollCommand is added by the RollCommand extension
+		editor.chain().focus().setRollCommand(command).run();
+	};
 
-    window.addEventListener('rollCommandClick', handleRollCommandClick)
-    return () => {
-      window.removeEventListener('rollCommandClick', handleRollCommandClick)
-    }
-  }, [])
+	const handleDamageRoll = () => {
+		const formula = window.prompt("Enter damage formula (e.g., 1d6, 2d8+3):");
+		if (formula) {
+			insertRollCommand(createDamageRoll(formula));
+		}
+	};
 
-  const insertRollCommand = (command: string) => {
-    editor.chain().focus().setRollCommand(command).run()
-  }
+	const handleSpellReference = () => {
+		const spellName = window.prompt("Enter spell name:");
+		if (spellName) {
+			insertRollCommand(createSpellReference(spellName));
+		}
+	};
 
-  const handleDamageRoll = () => {
-    const formula = window.prompt('Enter damage formula (e.g., 1d6, 2d8+3):')
-    if (formula) {
-      insertRollCommand(createDamageRoll(formula))
-    }
-  }
+	const handleItemReference = () => {
+		const itemName = window.prompt("Enter item name:");
+		if (itemName) {
+			insertRollCommand(createItemReference(itemName));
+		}
+	};
 
-  const handleSpellReference = () => {
-    const spellName = window.prompt('Enter spell name:')
-    if (spellName) {
-      insertRollCommand(createSpellReference(spellName))
-    }
-  }
+	const handleAttackRoll = () => {
+		setShowAttackDialog(true);
+		setAttackOptions({});
+		setIsEditing(false);
+		setEditingPosition(null);
+	};
 
-  const handleItemReference = () => {
-    const itemName = window.prompt('Enter item name:')
-    if (itemName) {
-      insertRollCommand(createItemReference(itemName))
-    }
-  }
+	const handleAttackDialogSubmit = () => {
+		const newCommand = createAttackRoll(attackOptions);
 
-  const handleAttackRoll = () => {
-    setShowAttackDialog(true)
-    setAttackOptions({})
-    setIsEditing(false)
-    setEditingPosition(null)
-  }
+		if (isEditing && editingPosition !== null) {
+			// Update existing command
+			const { state } = editor.view;
+			const { tr } = state;
+			const $pos = state.doc.resolve(editingPosition);
 
-  const handleAttackDialogSubmit = () => {
-    const newCommand = createAttackRoll(attackOptions)
-    
-    if (isEditing && editingPosition !== null) {
-      // Update existing command
-      const { state } = editor.view
-      const { tr } = state
-      const $pos = state.doc.resolve(editingPosition)
-      
-      // Find the rollCommand node at this position
-      let nodePos = editingPosition
-      let nodeSize = 0
-      
-      // Check if we're at the start of a rollCommand node
-      const node = $pos.nodeAfter
-      if (node && node.type.name === 'rollCommand') {
-        nodeSize = node.nodeSize
-      } else {
-        // Try to find the node by checking parent nodes
-        for (let i = $pos.depth; i > 0; i--) {
-          const parent = $pos.node(i)
-          if (parent.type.name === 'rollCommand') {
-            nodePos = $pos.start(i)
-            nodeSize = parent.nodeSize
-            break
-          }
-        }
-      }
-      
-      if (nodeSize > 0) {
-        // Replace the node
-        tr.replaceWith(nodePos, nodePos + nodeSize, state.schema.nodes.rollCommand.create({
-          command: newCommand
-        }))
-        editor.view.dispatch(tr)
-      }
-    } else {
-      // Insert new command
-      insertRollCommand(newCommand)
-    }
-    
-    setShowAttackDialog(false)
-    setAttackOptions({})
-    setIsEditing(false)
-    setEditingPosition(null)
-  }
+			// Find the rollCommand node at this position
+			let nodePos = editingPosition;
+			let nodeSize = 0;
 
-  const handleAttackDialogCancel = () => {
-    setShowAttackDialog(false)
-    setAttackOptions({})
-    setIsEditing(false)
-    setEditingPosition(null)
-  }
+			// Check if we're at the start of a rollCommand node
+			const node = $pos.nodeAfter;
+			if (node && node.type.name === "rollCommand") {
+				nodeSize = node.nodeSize;
+			} else {
+				// Try to find the node by checking parent nodes
+				for (let i = $pos.depth; i > 0; i--) {
+					const parent = $pos.node(i);
+					if (parent.type.name === "rollCommand") {
+						nodePos = $pos.start(i);
+						nodeSize = parent.nodeSize;
+						break;
+					}
+				}
+			}
 
-  const handleDefaultAttack = (ability?: string) => {
-    // Insert default attack enricher with +5 to hit
-    // This is a common default for simple attack rolls
-    insertRollCommand(createAttackRoll({ formula: 5 }))
-    setShowAttackMenu(false)
-  }
+			if (nodeSize > 0) {
+				// Replace the node
+				tr.replaceWith(
+					nodePos,
+					nodePos + nodeSize,
+					state.schema.nodes.rollCommand.create({
+						command: newCommand,
+					}),
+				);
+				editor.view.dispatch(tr);
+			}
+		} else {
+			// Insert new command
+			insertRollCommand(newCommand);
+		}
 
-  const handleCheckEnricher = (type: 'check' | 'skill' | 'tool' = 'check') => {
-    setCheckDialogType(type)
-    setShowCheckDialog(true)
-    setCheckOptions({})
-    setIsEditing(false)
-    setEditingPosition(null)
-  }
+		setShowAttackDialog(false);
+		setAttackOptions({});
+		setIsEditing(false);
+		setEditingPosition(null);
+	};
 
-  const handleCheckDialogSubmit = () => {
-    const newCommand = createCheckEnricher(checkOptions, checkDialogType)
-    
-    if (isEditing && editingPosition !== null) {
-      // Update existing command
-      const { state } = editor.view
-      const { tr } = state
-      const $pos = state.doc.resolve(editingPosition)
-      
-      // Find the rollCommand node at this position
-      let nodePos = editingPosition
-      let nodeSize = 0
-      
-      // Check if we're at the start of a rollCommand node
-      const node = $pos.nodeAfter
-      if (node && node.type.name === 'rollCommand') {
-        nodeSize = node.nodeSize
-      } else {
-        // Try to find the node by checking parent nodes
-        for (let i = $pos.depth; i > 0; i--) {
-          const parent = $pos.node(i)
-          if (parent.type.name === 'rollCommand') {
-            nodePos = $pos.start(i)
-            nodeSize = parent.nodeSize
-            break
-          }
-        }
-      }
-      
-      if (nodeSize > 0) {
-        // Replace the node
-        tr.replaceWith(nodePos, nodePos + nodeSize, state.schema.nodes.rollCommand.create({
-          command: newCommand
-        }))
-        editor.view.dispatch(tr)
-      }
-    } else {
-      // Insert new command
-      insertRollCommand(newCommand)
-    }
-    
-    setShowCheckDialog(false)
-    setCheckOptions({})
-    setIsEditing(false)
-    setEditingPosition(null)
-  }
+	const handleAttackDialogCancel = () => {
+		setShowAttackDialog(false);
+		setAttackOptions({});
+		setIsEditing(false);
+		setEditingPosition(null);
+	};
 
-  const handleCheckDialogCancel = () => {
-    setShowCheckDialog(false)
-    setCheckOptions({})
-    setIsEditing(false)
-    setEditingPosition(null)
-  }
+	const handleDefaultAttack = () => {
+		// Insert default attack enricher with +5 to hit
+		// This is a common default for simple attack rolls
+		insertRollCommand(createAttackRoll({ formula: 5 }));
+	};
 
-  return (
-    <div className="roll-command-buttons" ref={dropdownRef}>
-      <div className="toolbar-group">
-        <div className="dropdown">
-          <button
-            onClick={() => {
-              setShowSkillMenu(!showSkillMenu)
-              setShowAbilityMenu(false)
-              setShowSaveMenu(false)
-              setShowAttackMenu(false)
-            }}
-            title="Skill Check"
-          >
-            Skill Check ▼
-          </button>
-          {showSkillMenu && (
-            <div className="dropdown-menu">
-              {SKILLS.map((skill) => (
-                <button
-                  key={skill}
-                  onClick={() => {
-                    insertRollCommand(createSkillCheck(skill))
-                    setShowSkillMenu(false)
-                  }}
-                  className="dropdown-item"
-                >
-                  {skill.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
-                </button>
-              ))}
-              <button
-                onClick={() => {
-                  handleCheckEnricher('skill')
-                  setShowSkillMenu(false)
-                }}
-                className="dropdown-item"
-                style={{ fontWeight: 'bold', borderTop: '1px solid #ccc', marginTop: '4px', paddingTop: '8px' }}
-              >
-                Advanced Options...
-              </button>
-            </div>
-          )}
-        </div>
+	const handleCheckEnricher = (type: "check" | "skill" | "tool" = "check") => {
+		setCheckDialogType(type);
+		setShowCheckDialog(true);
+		setCheckOptions({});
+		setIsEditing(false);
+		setEditingPosition(null);
+	};
 
-        <div className="dropdown">
-          <button
-            onClick={() => {
-              setShowAbilityMenu(!showAbilityMenu)
-              setShowSkillMenu(false)
-              setShowSaveMenu(false)
-              setShowAttackMenu(false)
-            }}
-            title="Ability Check"
-          >
-            Ability Check ▼
-          </button>
-          {showAbilityMenu && (
-            <div className="dropdown-menu">
-              {ABILITIES.map((ability) => (
-                <button
-                  key={ability}
-                  onClick={() => {
-                    insertRollCommand(createAbilityCheck(ability))
-                    setShowAbilityMenu(false)
-                  }}
-                  className="dropdown-item"
-                >
-                  {ability.charAt(0).toUpperCase() + ability.slice(1)}
-                </button>
-              ))}
-              <button
-                onClick={() => {
-                  handleCheckEnricher('check')
-                  setShowAbilityMenu(false)
-                }}
-                className="dropdown-item"
-                style={{ fontWeight: 'bold', borderTop: '1px solid #ccc', marginTop: '4px', paddingTop: '8px' }}
-              >
-                Advanced Options...
-              </button>
-            </div>
-          )}
-        </div>
+	const handleCheckDialogSubmit = () => {
+		const newCommand = createCheckEnricher(checkOptions, checkDialogType);
 
-        <div className="dropdown">
-          <button
-            onClick={() => {
-              setShowSaveMenu(!showSaveMenu)
-              setShowSkillMenu(false)
-              setShowAbilityMenu(false)
-              setShowAttackMenu(false)
-            }}
-            title="Saving Throw"
-          >
-            Saving Throw ▼
-          </button>
-          {showSaveMenu && (
-            <div className="dropdown-menu">
-              {ABILITIES.map((ability) => (
-                <button
-                  key={ability}
-                  onClick={() => {
-                    insertRollCommand(createSavingThrow(ability))
-                    setShowSaveMenu(false)
-                  }}
-                  className="dropdown-item"
-                >
-                  {ability.charAt(0).toUpperCase() + ability.slice(1)}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+		if (isEditing && editingPosition !== null) {
+			// Update existing command
+			const { state } = editor.view;
+			const { tr } = state;
+			const $pos = state.doc.resolve(editingPosition);
 
-        <div className="dropdown">
-          <button
-            onClick={() => {
-              setShowAttackMenu(!showAttackMenu)
-              setShowSkillMenu(false)
-              setShowAbilityMenu(false)
-              setShowSaveMenu(false)
-            }}
-            title="Attack Roll"
-          >
-            Attack Roll ▼
-          </button>
-          {showAttackMenu && (
-            <div className="dropdown-menu">
-              {ABILITIES.map((ability) => (
-                <button
-                  key={ability}
-                  onClick={() => handleDefaultAttack(ability)}
-                  className="dropdown-item"
-                >
-                  {ability.charAt(0).toUpperCase() + ability.slice(1)} Attack
-                </button>
-              ))}
-              <button
-                onClick={handleAttackRoll}
-                className="dropdown-item"
-                style={{ fontWeight: 'bold', borderTop: '1px solid #ccc', marginTop: '4px', paddingTop: '8px' }}
-              >
-                Advanced Options...
-              </button>
-            </div>
-          )}
-        </div>
+			// Find the rollCommand node at this position
+			let nodePos = editingPosition;
+			let nodeSize = 0;
 
-        <button onClick={handleDamageRoll} title="Damage Roll">
-          Damage
-        </button>
-        <button onClick={handleSpellReference} title="Spell Reference">
-          Spell
-        </button>
-        <button onClick={handleItemReference} title="Item Reference">
-          Item
-        </button>
-      </div>
+			// Check if we're at the start of a rollCommand node
+			const node = $pos.nodeAfter;
+			if (node && node.type.name === "rollCommand") {
+				nodeSize = node.nodeSize;
+			} else {
+				// Try to find the node by checking parent nodes
+				for (let i = $pos.depth; i > 0; i--) {
+					const parent = $pos.node(i);
+					if (parent.type.name === "rollCommand") {
+						nodePos = $pos.start(i);
+						nodeSize = parent.nodeSize;
+						break;
+					}
+				}
+			}
 
-      {/* Check Enricher Dialog */}
-      {showCheckDialog && (
-        <div className="attack-dialog-overlay" onClick={handleCheckDialogCancel}>
-          <div className="attack-dialog" onClick={(e) => e.stopPropagation()}>
-            <h3>{isEditing ? 'Edit' : 'Insert'} Check Enricher ({checkDialogType})</h3>
-            <div className="attack-dialog-content">
-              <div className="attack-dialog-field">
-                <label>
-                  Ability (optional):
-                  <select
-                    value={checkOptions.ability || ''}
-                    onChange={(e) => {
-                      const value = e.target.value
-                      setCheckOptions({
-                        ...checkOptions,
-                        ability: value || undefined,
-                      })
-                    }}
-                  >
-                    <option value="">None</option>
-                    {ABILITIES.map((ability) => (
-                      <option key={ability} value={ability}>
-                        {ability.charAt(0).toUpperCase() + ability.slice(1)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
+			if (nodeSize > 0) {
+				// Replace the node
+				tr.replaceWith(
+					nodePos,
+					nodePos + nodeSize,
+					state.schema.nodes.rollCommand.create({
+						command: newCommand,
+					}),
+				);
+				editor.view.dispatch(tr);
+			}
+		} else {
+			// Insert new command
+			insertRollCommand(newCommand);
+		}
 
-              <div className="attack-dialog-field">
-                <label>
-                  Skill(s) (optional, separate multiple with commas):
-                  <input
-                    type="text"
-                    placeholder="acrobatics, athletics"
-                    value={Array.isArray(checkOptions.skill) ? checkOptions.skill.join(', ') : (checkOptions.skill || '')}
-                    onChange={(e) => {
-                      const value = e.target.value.trim()
-                      if (value === '') {
-                        const { skill, ...rest } = checkOptions
-                        setCheckOptions(rest)
-                      } else {
-                        const skills = value.split(',').map(s => s.trim()).filter(s => s)
-                        setCheckOptions({
-                          ...checkOptions,
-                          skill: skills.length > 1 ? skills : skills[0],
-                        })
-                      }
-                    }}
-                  />
-                </label>
-              </div>
+		setShowCheckDialog(false);
+		setCheckOptions({});
+		setIsEditing(false);
+		setEditingPosition(null);
+	};
 
-              <div className="attack-dialog-field">
-                <label>
-                  Tool(s) (optional, separate multiple with commas):
-                  <input
-                    type="text"
-                    placeholder="thieves-tools"
-                    value={Array.isArray(checkOptions.tool) ? checkOptions.tool.join(', ') : (checkOptions.tool || '')}
-                    onChange={(e) => {
-                      const value = e.target.value.trim()
-                      if (value === '') {
-                        const { tool, ...rest } = checkOptions
-                        setCheckOptions(rest)
-                      } else {
-                        const tools = value.split(',').map(t => t.trim()).filter(t => t)
-                        setCheckOptions({
-                          ...checkOptions,
-                          tool: tools.length > 1 ? tools : tools[0],
-                        })
-                      }
-                    }}
-                  />
-                </label>
-              </div>
+	const handleCheckDialogCancel = () => {
+		setShowCheckDialog(false);
+		setCheckOptions({});
+		setIsEditing(false);
+		setEditingPosition(null);
+	};
 
-              <div className="attack-dialog-field">
-                <label>
-                  Vehicle (optional):
-                  <input
-                    type="text"
-                    placeholder="water"
-                    value={checkOptions.vehicle || ''}
-                    onChange={(e) => {
-                      const value = e.target.value.trim()
-                      setCheckOptions({
-                        ...checkOptions,
-                        vehicle: value || undefined,
-                      })
-                    }}
-                  />
-                </label>
-              </div>
+	return (
+		<div className="flex gap-0.5 border-r border-border pr-2 mr-2">
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<Button variant="ghost" size="sm" title="Skill Check">
+						Skill Check ▼
+					</Button>
+				</DropdownMenuTrigger>
 
-              <div className="attack-dialog-field">
-                <label>
-                  DC (optional, number or formula like "@abilities.con.dc"):
-                  <input
-                    type="text"
-                    placeholder="15 or @abilities.con.dc"
-                    value={checkOptions.dc?.toString() || ''}
-                    onChange={(e) => {
-                      const value = e.target.value.trim()
-                      if (value === '') {
-                        const { dc, ...rest } = checkOptions
-                        setCheckOptions(rest)
-                      } else {
-                        // Try to parse as number, otherwise keep as string (formula)
-                        const numValue = parseInt(value)
-                        setCheckOptions({
-                          ...checkOptions,
-                          dc: isNaN(numValue) ? value : numValue,
-                        })
-                      }
-                    }}
-                  />
-                </label>
-              </div>
+				<DropdownMenuContent align="start">
+					{SKILLS.map((skill) => (
+						<DropdownMenuItem
+							key={skill}
+							onSelect={() => {
+								insertRollCommand(createSkillCheck(skill));
+							}}
+						>
+							{skill
+								.replace(/-/g, " ")
+								.replace(/\b\w/g, (l) => l.toUpperCase())}
+						</DropdownMenuItem>
+					))}
+					<DropdownMenuSeparator />
+					<DropdownMenuItem
+						onSelect={() => handleCheckEnricher("skill")}
+						className="font-semibold"
+					>
+						Advanced Options...
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
 
-              <div className="attack-dialog-field">
-                <label>
-                  Format (optional):
-                  <select
-                    value={checkOptions.format || ''}
-                    onChange={(e) => {
-                      const value = e.target.value
-                      setCheckOptions({
-                        ...checkOptions,
-                        format: (value || undefined) as 'short' | 'long' | undefined,
-                      })
-                    }}
-                  >
-                    <option value="">Default</option>
-                    <option value="short">Short</option>
-                    <option value="long">Long</option>
-                  </select>
-                </label>
-              </div>
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<Button variant="ghost" size="sm" title="Ability Check">
+						Ability Check ▼
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent
+					className="max-h-[300px] overflow-y-auto min-w-[180px]"
+					align="start"
+				>
+					{ABILITIES.map((ability) => (
+						<DropdownMenuItem
+							key={ability}
+							onSelect={() => {
+								insertRollCommand(createAbilityCheck(ability));
+							}}
+						>
+							{ability.charAt(0).toUpperCase() + ability.slice(1)}
+						</DropdownMenuItem>
+					))}
+					<DropdownMenuSeparator />
+					<DropdownMenuItem
+						onSelect={() => handleCheckEnricher("check")}
+						className="font-semibold"
+					>
+						Advanced Options...
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
 
-              <div className="attack-dialog-field">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={checkOptions.passive || false}
-                    onChange={(e) => {
-                      setCheckOptions({
-                        ...checkOptions,
-                        passive: e.target.checked || undefined,
-                      })
-                    }}
-                  />
-                  Passive check
-                </label>
-              </div>
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<Button variant="ghost" size="sm" title="Saving Throw">
+						Saving Throw ▼
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent
+					className="max-h-[300px] overflow-y-auto min-w-[180px]"
+					align="start"
+				>
+					{ABILITIES.map((ability) => (
+						<DropdownMenuItem
+							key={ability}
+							onSelect={() => {
+								insertRollCommand(createSavingThrow(ability));
+							}}
+						>
+							{ability.charAt(0).toUpperCase() + ability.slice(1)}
+						</DropdownMenuItem>
+					))}
+				</DropdownMenuContent>
+			</DropdownMenu>
 
-              <div className="attack-dialog-field">
-                <label>
-                  Activity ID (optional):
-                  <input
-                    type="text"
-                    placeholder="RLQlsLo5InKHZadn"
-                    value={checkOptions.activity || ''}
-                    onChange={(e) => {
-                      const value = e.target.value.trim()
-                      setCheckOptions({
-                        ...checkOptions,
-                        activity: value || undefined,
-                      })
-                    }}
-                  />
-                </label>
-              </div>
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<Button variant="ghost" size="sm" title="Attack Roll">
+						Attack Roll ▼
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent
+					className="max-h-[300px] overflow-y-auto min-w-[180px]"
+					align="start"
+				>
+					{ABILITIES.map((ability) => (
+						<DropdownMenuItem
+							key={ability}
+							onSelect={() => handleDefaultAttack()}
+						>
+							{ability.charAt(0).toUpperCase() + ability.slice(1)} Attack
+						</DropdownMenuItem>
+					))}
+					<DropdownMenuSeparator />
+					<DropdownMenuItem
+						onSelect={handleAttackRoll}
+						className="font-semibold"
+					>
+						Advanced Options...
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
 
-              <div className="attack-dialog-field">
-                <label>
-                  Rules Version (optional, only affects skill+tool combinations):
-                  <select
-                    value={checkOptions.rules || ''}
-                    onChange={(e) => {
-                      const value = e.target.value
-                      setCheckOptions({
-                        ...checkOptions,
-                        rules: (value || undefined) as '2014' | '2024' | undefined,
-                      })
-                    }}
-                  >
-                    <option value="">Default</option>
-                    <option value="2014">2014 (Legacy)</option>
-                    <option value="2024">2024</option>
-                  </select>
-                </label>
-              </div>
+			<Button
+				variant="ghost"
+				size="sm"
+				onClick={handleDamageRoll}
+				title="Damage Roll"
+			>
+				Damage
+			</Button>
+			<Button
+				variant="ghost"
+				size="sm"
+				onClick={handleSpellReference}
+				title="Spell Reference"
+			>
+				Spell
+			</Button>
+			<Button
+				variant="ghost"
+				size="sm"
+				onClick={handleItemReference}
+				title="Item Reference"
+			>
+				Item
+			</Button>
 
-              <div className="attack-dialog-preview">
-                <strong>Preview:</strong>
-                <code>{createCheckEnricher(checkOptions, checkDialogType)}</code>
-              </div>
-            </div>
+			{/* Check Enricher Dialog */}
+			<Dialog
+				open={showCheckDialog}
+				onOpenChange={(open) => !open && handleCheckDialogCancel()}
+			>
+				<DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>
+							{isEditing ? "Edit" : "Insert"} Check Enricher ({checkDialogType})
+						</DialogTitle>
+					</DialogHeader>
+					<div className="flex flex-col gap-4">
+						<div className="flex flex-col gap-2">
+							<Label>
+								Ability (optional):
+								<Select
+									value={checkOptions.ability || ""}
+									onValueChange={(value) => {
+										setCheckOptions({
+											...checkOptions,
+											ability: value || undefined,
+										});
+									}}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder="None" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="">None</SelectItem>
+										{ABILITIES.map((ability) => (
+											<SelectItem key={ability} value={ability}>
+												{ability.charAt(0).toUpperCase() + ability.slice(1)}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</Label>
+						</div>
 
-            <div className="attack-dialog-actions">
-              <button onClick={handleCheckDialogCancel}>Cancel</button>
-              <button onClick={handleCheckDialogSubmit} className="primary">
-                {isEditing ? 'Update' : 'Insert'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+						<div className="flex flex-col gap-2">
+							<Label>
+								Skill(s) (optional, separate multiple with commas):
+								<Input
+									type="text"
+									placeholder="acrobatics, athletics"
+									value={
+										Array.isArray(checkOptions.skill)
+											? checkOptions.skill.join(", ")
+											: checkOptions.skill || ""
+									}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+										if (value === "") {
+											// eslint-disable-next-line @typescript-eslint/no-unused-vars
+											const { skill, ...rest } = checkOptions;
+											setCheckOptions(rest);
+										} else {
+											const skills = value
+												.split(",")
+												.map((s) => s.trim())
+												.filter((s) => s);
+											setCheckOptions({
+												...checkOptions,
+												skill: skills.length > 1 ? skills : skills[0],
+											});
+										}
+									}}
+								/>
+							</Label>
+						</div>
 
-      {/* Attack Enricher Dialog */}
-      {showAttackDialog && (
-        <div className="attack-dialog-overlay" onClick={handleAttackDialogCancel}>
-          <div className="attack-dialog" onClick={(e) => e.stopPropagation()}>
-            <h3>{isEditing ? 'Edit' : 'Insert'} Attack Enricher</h3>
-            <div className="attack-dialog-content">
-              <div className="attack-dialog-field">
-                <label>
-                  Formula (e.g., "+5", "5", or leave empty):
-                  <input
-                    type="text"
-                    placeholder="+5"
-                    value={attackOptions.formula?.toString() || ''}
-                    onChange={(e) => {
-                      const value = e.target.value.trim()
-                      if (value === '') {
-                        const { formula, ...rest } = attackOptions
-                        setAttackOptions(rest)
-                      } else {
-                        // Try to parse as number, otherwise keep as string
-                        const numValue = parseInt(value.replace(/^\+/, ''))
-                        setAttackOptions({
-                          ...attackOptions,
-                          formula: isNaN(numValue) ? value : numValue,
-                        })
-                      }
-                    }}
-                  />
-                </label>
-              </div>
+						<div className="flex flex-col gap-2">
+							<Label>
+								Tool(s) (optional, separate multiple with commas):
+								<Input
+									type="text"
+									placeholder="thieves-tools"
+									value={
+										Array.isArray(checkOptions.tool)
+											? checkOptions.tool.join(", ")
+											: checkOptions.tool || ""
+									}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+										if (value === "") {
+											// eslint-disable-next-line @typescript-eslint/no-unused-vars
+											const { tool, ...rest } = checkOptions;
+											setCheckOptions(rest);
+										} else {
+											const tools = value
+												.split(",")
+												.map((t) => t.trim())
+												.filter((t) => t);
+											setCheckOptions({
+												...checkOptions,
+												tool: tools.length > 1 ? tools : tools[0],
+											});
+										}
+									}}
+								/>
+							</Label>
+						</div>
 
-              <div className="attack-dialog-field">
-                <label>
-                  Activity ID (optional):
-                  <input
-                    type="text"
-                    placeholder="jdRTb04FngE1B8cF"
-                    value={attackOptions.activity || ''}
-                    onChange={(e) => {
-                      const value = e.target.value.trim()
-                      setAttackOptions({
-                        ...attackOptions,
-                        activity: value || undefined,
-                      })
-                    }}
-                  />
-                </label>
-              </div>
+						<div className="flex flex-col gap-2">
+							<Label>
+								Vehicle (optional):
+								<Input
+									type="text"
+									placeholder="water"
+									value={checkOptions.vehicle || ""}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+										setCheckOptions({
+											...checkOptions,
+											vehicle: value || undefined,
+										});
+									}}
+								/>
+							</Label>
+						</div>
 
-              <div className="attack-dialog-field">
-                <label>
-                  Attack Mode (optional):
-                  <select
-                    value={attackOptions.attackMode || ''}
-                    onChange={(e) => {
-                      const value = e.target.value
-                      setAttackOptions({
-                        ...attackOptions,
-                        attackMode: value || undefined,
-                      })
-                    }}
-                  >
-                    <option value="">None</option>
-                    <option value="melee">Melee</option>
-                    <option value="ranged">Ranged</option>
-                    <option value="thrown">Thrown</option>
-                  </select>
-                </label>
-              </div>
+						<div className="flex flex-col gap-2">
+							<Label>
+								DC (optional, number or formula like "@abilities.con.dc"):
+								<Input
+									type="text"
+									placeholder="15 or @abilities.con.dc"
+									value={checkOptions.dc?.toString() || ""}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+										if (value === "") {
+											// eslint-disable-next-line @typescript-eslint/no-unused-vars
+											const { dc, ...rest } = checkOptions;
+											setCheckOptions(rest);
+										} else {
+											const numValue = parseInt(value);
+											setCheckOptions({
+												...checkOptions,
+												dc: Number.isNaN(numValue) ? value : numValue,
+											});
+										}
+									}}
+								/>
+							</Label>
+						</div>
 
-              <div className="attack-dialog-field">
-                <label>
-                  Format (optional):
-                  <select
-                    value={attackOptions.format || ''}
-                    onChange={(e) => {
-                      const value = e.target.value
-                      setAttackOptions({
-                        ...attackOptions,
-                        format: (value || undefined) as 'short' | 'long' | 'extended' | undefined,
-                      })
-                    }}
-                  >
-                    <option value="">Default</option>
-                    <option value="short">Short</option>
-                    <option value="long">Long</option>
-                    <option value="extended">Extended</option>
-                  </select>
-                </label>
-              </div>
+						<div className="flex flex-col gap-2">
+							<Label>
+								Format (optional):
+								<Select
+									value={checkOptions.format || ""}
+									onValueChange={(value) => {
+										setCheckOptions({
+											...checkOptions,
+											format: (value || undefined) as
+												| "short"
+												| "long"
+												| undefined,
+										});
+									}}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder="Default" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="">Default</SelectItem>
+										<SelectItem value="short">Short</SelectItem>
+										<SelectItem value="long">Long</SelectItem>
+									</SelectContent>
+								</Select>
+							</Label>
+						</div>
 
-              <div className="attack-dialog-field">
-                <label>
-                  Rules Version (optional, only affects extended format):
-                  <select
-                    value={attackOptions.rules || ''}
-                    onChange={(e) => {
-                      const value = e.target.value
-                      setAttackOptions({
-                        ...attackOptions,
-                        rules: (value || undefined) as '2014' | '2024' | undefined,
-                      })
-                    }}
-                  >
-                    <option value="">Default</option>
-                    <option value="2014">2014 (Legacy)</option>
-                    <option value="2024">2024</option>
-                  </select>
-                </label>
-              </div>
+						<div className="flex items-center gap-2">
+							<input
+								type="checkbox"
+								id={passiveCheckId}
+								checked={checkOptions.passive || false}
+								onChange={(e) => {
+									setCheckOptions({
+										...checkOptions,
+										passive: e.target.checked || undefined,
+									});
+								}}
+								className="h-4 w-4 rounded border-gray-300"
+							/>
+							<Label htmlFor={passiveCheckId} className="cursor-pointer">
+								Passive check
+							</Label>
+						</div>
 
-              <div className="attack-dialog-preview">
-                <strong>Preview:</strong>
-                <code>{createAttackRoll(attackOptions)}</code>
-              </div>
-            </div>
+						<div className="flex flex-col gap-2">
+							<Label>
+								Activity ID (optional):
+								<Input
+									type="text"
+									placeholder="RLQlsLo5InKHZadn"
+									value={checkOptions.activity || ""}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+										setCheckOptions({
+											...checkOptions,
+											activity: value || undefined,
+										});
+									}}
+								/>
+							</Label>
+						</div>
 
-            <div className="attack-dialog-actions">
-              <button onClick={handleAttackDialogCancel}>Cancel</button>
-              <button onClick={handleAttackDialogSubmit} className="primary">
-                {isEditing ? 'Update' : 'Insert'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
+						<div className="flex flex-col gap-2">
+							<Label>
+								Rules Version (optional, only affects skill+tool combinations):
+								<Select
+									value={checkOptions.rules || ""}
+									onValueChange={(value) => {
+										setCheckOptions({
+											...checkOptions,
+											rules: (value || undefined) as
+												| "2014"
+												| "2024"
+												| undefined,
+										});
+									}}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder="Default" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="">Default</SelectItem>
+										<SelectItem value="2014">2014 (Legacy)</SelectItem>
+										<SelectItem value="2024">2024</SelectItem>
+									</SelectContent>
+								</Select>
+							</Label>
+						</div>
+
+						<div className="mt-2 p-3 bg-muted rounded-md border border-border">
+							<strong className="block mb-2 text-sm text-muted-foreground">
+								Preview:
+							</strong>
+							<code className="block font-mono text-xs text-foreground break-all">
+								{createCheckEnricher(checkOptions, checkDialogType)}
+							</code>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button variant="outline" onClick={handleCheckDialogCancel}>
+							Cancel
+						</Button>
+						<Button onClick={handleCheckDialogSubmit}>
+							{isEditing ? "Update" : "Insert"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Attack Enricher Dialog */}
+			<Dialog
+				open={showAttackDialog}
+				onOpenChange={(open) => !open && handleAttackDialogCancel()}
+			>
+				<DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>
+							{isEditing ? "Edit" : "Insert"} Attack Enricher
+						</DialogTitle>
+					</DialogHeader>
+					<div className="flex flex-col gap-4">
+						<div className="flex flex-col gap-2">
+							<Label>
+								Formula (e.g., "+5", "5", or leave empty):
+								<Input
+									type="text"
+									placeholder="+5"
+									value={attackOptions.formula?.toString() || ""}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+										if (value === "") {
+											// eslint-disable-next-line @typescript-eslint/no-unused-vars
+											const { formula, ...rest } = attackOptions;
+											setAttackOptions(rest);
+										} else {
+											const numValue = parseInt(value.replace(/^\+/, ""));
+											setAttackOptions({
+												...attackOptions,
+												formula: Number.isNaN(numValue) ? value : numValue,
+											});
+										}
+									}}
+								/>
+							</Label>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							<Label>
+								Activity ID (optional):
+								<Input
+									type="text"
+									placeholder="jdRTb04FngE1B8cF"
+									value={attackOptions.activity || ""}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+										setAttackOptions({
+											...attackOptions,
+											activity: value || undefined,
+										});
+									}}
+								/>
+							</Label>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							<Label>
+								Attack Mode (optional):
+								<Select
+									value={attackOptions.attackMode || ""}
+									onValueChange={(value) => {
+										setAttackOptions({
+											...attackOptions,
+											attackMode: value || undefined,
+										});
+									}}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder="None" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="">None</SelectItem>
+										<SelectItem value="melee">Melee</SelectItem>
+										<SelectItem value="ranged">Ranged</SelectItem>
+										<SelectItem value="thrown">Thrown</SelectItem>
+									</SelectContent>
+								</Select>
+							</Label>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							<Label>
+								Format (optional):
+								<Select
+									value={attackOptions.format || ""}
+									onValueChange={(value) => {
+										setAttackOptions({
+											...attackOptions,
+											format: (value || undefined) as
+												| "short"
+												| "long"
+												| "extended"
+												| undefined,
+										});
+									}}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder="Default" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="">Default</SelectItem>
+										<SelectItem value="short">Short</SelectItem>
+										<SelectItem value="long">Long</SelectItem>
+										<SelectItem value="extended">Extended</SelectItem>
+									</SelectContent>
+								</Select>
+							</Label>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							<Label>
+								Rules Version (optional, only affects extended format):
+								<Select
+									value={attackOptions.rules || ""}
+									onValueChange={(value) => {
+										setAttackOptions({
+											...attackOptions,
+											rules: (value || undefined) as
+												| "2014"
+												| "2024"
+												| undefined,
+										});
+									}}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder="Default" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="">Default</SelectItem>
+										<SelectItem value="2014">2014 (Legacy)</SelectItem>
+										<SelectItem value="2024">2024</SelectItem>
+									</SelectContent>
+								</Select>
+							</Label>
+						</div>
+
+						<div className="mt-2 p-3 bg-muted rounded-md border border-border">
+							<strong className="block mb-2 text-sm text-muted-foreground">
+								Preview:
+							</strong>
+							<code className="block font-mono text-xs text-foreground break-all">
+								{createAttackRoll(attackOptions)}
+							</code>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button variant="outline" onClick={handleAttackDialogCancel}>
+							Cancel
+						</Button>
+						<Button onClick={handleAttackDialogSubmit}>
+							{isEditing ? "Update" : "Insert"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+		</div>
+	);
 }
-
