@@ -1,0 +1,300 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-header {
+  background: #2c3e50;
+  color: white;
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.app-header h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.app-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .app-content {
+    flex-direction: column;
+  }
+
+  .editor-pane,
+  .preview-pane {
+    flex: 1;
+    min-height: 50vh;
+  }
+
+  .toolbar {
+    flex-wrap: wrap;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+}
+
+.editor-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #ddd;
+  overflow: hidden;
+}
+
+.preview-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #f5f5f5;
+}
+
+.editor-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.editor-content {
+  flex: 1;
+  overflow-y: auto;
+  background: white;
+}
+
+.preview-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.preview-header {
+  background: #2c3e50;
+  color: white;
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.preview-header h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.copy-button {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.copy-button:hover {
+  background: #218838;
+}
+
+.preview-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+/* TipTap Editor Styles */
+.ProseMirror {
+  outline: none;
+  padding: 1rem;
+  min-height: 200px;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.ProseMirror p {
+  margin: 0.5rem 0;
+}
+
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3,
+.ProseMirror h4,
+.ProseMirror h5,
+.ProseMirror h6 {
+  margin: 1rem 0 0.5rem 0;
+  font-weight: 600;
+}
+
+.ProseMirror h1 {
+  font-size: 2em;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5em;
+}
+
+.ProseMirror h3 {
+  font-size: 1.17em;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  margin: 0.5rem 0;
+  padding-left: 2rem;
+}
+
+.ProseMirror li {
+  margin: 0.25rem 0;
+}
+
+.ProseMirror a {
+  color: #0066cc;
+  text-decoration: underline;
+}
+
+.ProseMirror strong {
+  font-weight: 600;
+}
+
+.ProseMirror em {
+  font-style: italic;
+}
+
+.ProseMirror u {
+  text-decoration: underline;
+}
+
+/* Aside elements in editor */
+.ProseMirror aside {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid #666;
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.ProseMirror aside.note {
+  border-left-color: #3498db;
+  background: #ebf5fb;
+}
+
+.ProseMirror aside.secret {
+  border-left-color: #e74c3c;
+  background: #fadbd8;
+}
+
+.ProseMirror aside.readaloud {
+  border-left-color: #9b59b6;
+  background: #ebdef0;
+}
+
+.ProseMirror aside.hint {
+  border-left-color: #f39c12;
+  background: #fef5e7;
+}
+
+.ProseMirror aside.notable {
+  border-left-color: #17a2b8;
+  background: #d1ecf1;
+}
+
+/* FVTT Advice and Quest blocks in editor */
+.ProseMirror .fvtt.advice,
+.ProseMirror .fvtt.quest {
+  margin: 1rem 0;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1rem;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.ProseMirror .fvtt.advice figure.icon,
+.ProseMirror .fvtt.quest figure.icon {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.ProseMirror .fvtt.advice figure.icon img,
+.ProseMirror .fvtt.quest figure.icon img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.ProseMirror .fvtt.advice figure.icon img.round,
+.ProseMirror .fvtt.quest figure.icon img.round {
+  border-radius: 50%;
+}
+
+.ProseMirror .fvtt.advice article,
+.ProseMirror .fvtt.quest article {
+  flex: 1;
+}
+
+.ProseMirror .fvtt.advice article h4,
+.ProseMirror .fvtt.quest article h4 {
+  margin: 0 0 0.5rem 0;
+}
+
+.ProseMirror .fvtt.advice article p,
+.ProseMirror .fvtt.quest article p {
+  margin: 0.5rem 0;
+}
+
+/* FVTT Narrative blocks in editor */
+.ProseMirror .fvtt.narrative {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: #f0e8f5;
+  border-left: 4px solid #9b59b6;
+  border-radius: 4px;
+  font-style: italic;
+}
+
+/* Roll commands in editor */
+.ProseMirror .roll-command {
+  background: #fff3cd;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.9em;
+  border: 1px solid #ffc107;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+  user-select: none;
+}
+
+.ProseMirror .roll-command:hover {
+  background: #ffe69c;
+  border-color: #ff9800;
+}
+

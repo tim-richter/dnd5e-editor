@@ -1,0 +1,202 @@
+/* Foundry VTT-compatible preview styles */
+.foundry-preview {
+  padding: 1.5rem;
+  max-width: 800px;
+  margin: 0 auto;
+  background: white;
+  min-height: 100%;
+  font-family: 'Book Antiqua', 'Palatino Linotype', Palatino, serif;
+  line-height: 1.6;
+  color: #333;
+}
+
+.foundry-preview p {
+  margin: 0.75rem 0;
+  text-align: justify;
+}
+
+.foundry-preview h1,
+.foundry-preview h2,
+.foundry-preview h3,
+.foundry-preview h4,
+.foundry-preview h5,
+.foundry-preview h6 {
+  margin: 1.5rem 0 0.75rem 0;
+  font-weight: bold;
+  color: #58180d;
+}
+
+.foundry-preview h1 {
+  font-size: 1.8em;
+  border-bottom: 2px solid #58180d;
+  padding-bottom: 0.5rem;
+}
+
+.foundry-preview h2 {
+  font-size: 1.5em;
+  border-bottom: 1px solid #58180d;
+  padding-bottom: 0.25rem;
+}
+
+.foundry-preview h3 {
+  font-size: 1.25em;
+}
+
+.foundry-preview ul,
+.foundry-preview ol {
+  margin: 0.75rem 0;
+  padding-left: 2rem;
+}
+
+.foundry-preview li {
+  margin: 0.25rem 0;
+}
+
+.foundry-preview a {
+  color: #0066cc;
+  text-decoration: underline;
+}
+
+.foundry-preview strong {
+  font-weight: bold;
+}
+
+.foundry-preview em {
+  font-style: italic;
+}
+
+/* Foundry aside elements */
+.foundry-preview aside {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border-left: 4px solid #666;
+  background: #f5f5f5;
+  border-radius: 4px;
+  font-style: italic;
+}
+
+.foundry-preview aside.note {
+  border-left-color: #3498db;
+  background: #e8f4f8;
+}
+
+.foundry-preview aside.note::before {
+  content: '📝 Note: ';
+  font-weight: bold;
+  font-style: normal;
+}
+
+.foundry-preview aside.secret {
+  border-left-color: #e74c3c;
+  background: #f8e8e8;
+}
+
+.foundry-preview aside.secret::before {
+  content: '🔒 Secret: ';
+  font-weight: bold;
+  font-style: normal;
+}
+
+.foundry-preview aside.readaloud {
+  border-left-color: #9b59b6;
+  background: #f0e8f5;
+  font-style: italic;
+}
+
+.foundry-preview aside.readaloud::before {
+  content: '📖 Read Aloud: ';
+  font-weight: bold;
+  font-style: italic;
+}
+
+.foundry-preview aside.hint {
+  border-left-color: #f39c12;
+  background: #fef5e7;
+}
+
+.foundry-preview aside.hint::before {
+  content: '💡 Hint: ';
+  font-weight: bold;
+  font-style: normal;
+}
+
+.foundry-preview aside.notable {
+  border-left-color: #17a2b8;
+  background: #d1ecf1;
+  font-style: normal;
+}
+
+/* FVTT Advice and Quest blocks */
+.foundry-preview .fvtt.advice,
+.foundry-preview .fvtt.quest {
+  margin: 1.5rem 0;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  padding: 1rem;
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.foundry-preview .fvtt.advice figure.icon,
+.foundry-preview .fvtt.quest figure.icon {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.foundry-preview .fvtt.advice figure.icon img,
+.foundry-preview .fvtt.quest figure.icon img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.foundry-preview .fvtt.advice figure.icon img.round,
+.foundry-preview .fvtt.quest figure.icon img.round {
+  border-radius: 50%;
+}
+
+.foundry-preview .fvtt.advice article,
+.foundry-preview .fvtt.quest article {
+  flex: 1;
+}
+
+.foundry-preview .fvtt.advice article h4,
+.foundry-preview .fvtt.quest article h4 {
+  margin: 0 0 0.75rem 0;
+  color: #58180d;
+}
+
+.foundry-preview .fvtt.advice article p,
+.foundry-preview .fvtt.quest article p {
+  margin: 0.75rem 0;
+}
+
+/* FVTT Narrative blocks */
+.foundry-preview .fvtt.narrative {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: #f0e8f5;
+  border-left: 4px solid #9b59b6;
+  border-radius: 4px;
+  font-style: italic;
+}
+
+/* Roll commands styling */
+.foundry-preview .roll-command {
+  background: #fff3cd;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.9em;
+  border: 1px solid #ffc107;
+  color: #856404;
+  cursor: pointer;
+  display: inline-block;
+}
+
+.foundry-preview .roll-command:hover {
+  background: #ffe69c;
+}
+
