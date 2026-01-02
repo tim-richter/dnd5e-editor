@@ -5,6 +5,7 @@ import {
   SKILL_ABBREVIATIONS,
   type CheckEnricherOptions,
   type AttackEnricherOptions,
+  type DamageEnricherOptions,
 } from './rollCommands'
 
 /**
@@ -44,25 +45,33 @@ function normalizeSkill(skill: string): string {
  * - [[/skill perception]]
  * - [[/attack +5]]
  * - [[/attack formula=5 attackMode=thrown]]
+ * - [[/damage 2d6 fire]]
+ * - [[/damage 2d6 fire average]]
  */
 export function parseRollCommand(command: string): {
-  type: 'check' | 'skill' | 'tool' | 'attack'
-  options: CheckEnricherOptions | AttackEnricherOptions
+  type: 'check' | 'skill' | 'tool' | 'attack' | 'damage'
+  options: CheckEnricherOptions | AttackEnricherOptions | DamageEnricherOptions
   originalCommand: string
 } | null {
   // Match roll command pattern: [[/type ...]]
-  const match = command.match(/\[\[\/(check|skill|tool|attack)([^\]]*)\]\]/)
+  const match = command.match(/\[\[\/(check|skill|tool|attack|damage)([^\]]*)\]\]/)
   if (!match) {
     return null
   }
 
-  const type = match[1] as 'check' | 'skill' | 'tool' | 'attack'
+  const type = match[1] as 'check' | 'skill' | 'tool' | 'attack' | 'damage'
   const body = match[2].trim()
 
   if (type === 'attack') {
     return {
       type: 'attack',
       options: parseAttackCommand(body),
+      originalCommand: command,
+    }
+  } else if (type === 'damage') {
+    return {
+      type: 'damage',
+      options: parseDamageCommand(body),
       originalCommand: command,
     }
   } else {
@@ -282,6 +291,180 @@ function parseAttackCommand(body: string): AttackEnricherOptions {
       if (parts.length > 1) {
         options.attackMode = parts[1]
       }
+    }
+  }
+
+  return options
+}
+
+/**
+ * Parses a damage command body
+ */
+function parseDamageCommand(body: string): DamageEnricherOptions {
+  const options: DamageEnricherOptions = {}
+
+  if (!body) {
+    return options
+  }
+
+  // Check for explicit key=value format
+  const hasExplicitFormat = body.includes('=')
+
+  // Check for multiple rolls (separated by &)
+  if (body.includes(' & ')) {
+    // Split body into potential roll sections and shared options
+    // Format: "1d6 bludgeoning & 1d4 fire average" or "1d6 bludgeoning & 1d4 fire"
+    const allParts = body.split(/\s+/)
+    const rollSections: string[] = []
+    const sharedOptions: string[] = []
+    let currentSection: string[] = []
+    let foundOptions = false
+
+    // Group parts by ' & ' separator and identify where shared options start
+    for (let i = 0; i < allParts.length; i++) {
+      const part = allParts[i]
+      
+      // Check if this is a shared option keyword
+      if (part === 'average' || part.startsWith('average=') || part.startsWith('format=')) {
+        foundOptions = true
+        sharedOptions.push(...allParts.slice(i))
+        break
+      }
+      
+      if (part === '&') {
+        if (currentSection.length > 0) {
+          rollSections.push(currentSection.join(' '))
+          currentSection = []
+        }
+      } else {
+        currentSection.push(part)
+      }
+    }
+    
+    // Add the last section
+    if (currentSection.length > 0 && !foundOptions) {
+      rollSections.push(currentSection.join(' '))
+    }
+
+    // Parse each roll section
+    const rolls: Array<{ formula: string; type?: string | string[] }> = []
+    for (const rollString of rollSections) {
+      const rollParts = rollString.trim().split(/\s+/)
+      if (rollParts.length > 0) {
+        const roll: { formula: string; type?: string | string[] } = {
+          formula: rollParts[0],
+        }
+        // Everything after formula is damage type(s)
+        if (rollParts.length > 1) {
+          const typeParts = rollParts.slice(1)
+          roll.type = typeParts.length === 1 ? typeParts[0] : typeParts
+        }
+        rolls.push(roll)
+      }
+    }
+
+    options.rolls = rolls
+
+    // Extract shared options
+    for (const part of sharedOptions) {
+      if (part === 'average') {
+        options.average = true
+      } else if (part.startsWith('average=')) {
+        const value = part.substring(8)
+        const numValue = parseInt(value)
+        options.average = isNaN(numValue) ? value : numValue
+      } else if (part.startsWith('format=')) {
+        const value = part.substring(7)
+        if (value === 'short' || value === 'long' || value === 'extended') {
+          options.format = value
+        }
+      }
+    }
+
+    return options
+  }
+
+  if (hasExplicitFormat) {
+    // Parse explicit format: formula=2d6 type=fire average=true
+    const parts = body.split(/\s+/)
+    for (const part of parts) {
+      const [key, ...valueParts] = part.split('=')
+      const value = valueParts.join('=')
+
+      switch (key) {
+        case 'formula':
+          options.formula = value
+          break
+        case 'type':
+          // Handle slash-separated types: type=fire/cold
+          if (value.includes('/')) {
+            options.type = value.split('/')
+          } else {
+            options.type = value
+          }
+          break
+        case 'average':
+          if (value === 'true') {
+            options.average = true
+          } else {
+            const numValue = parseInt(value)
+            options.average = isNaN(numValue) ? value : numValue
+          }
+          break
+        case 'activity':
+          options.activity = value
+          break
+        case 'format':
+          if (value === 'short' || value === 'long' || value === 'extended') {
+            options.format = value
+          }
+          break
+      }
+    }
+  } else {
+    // Parse shorthand format: 2d6 fire, 2d6 fire average, etc.
+    const parts = body.split(/\s+/).filter((p) => p.length > 0)
+
+    if (parts.length === 0) {
+      return options
+    }
+
+    // First part is always formula
+    options.formula = parts[0]
+
+    // Remaining parts could be:
+    // - Damage type(s)
+    // - "average" or "average=value"
+    // - "format=value"
+    let i = 1
+    const typeParts: string[] = []
+
+    while (i < parts.length) {
+      const part = parts[i]
+
+      if (part === 'average') {
+        options.average = true
+        i++
+      } else if (part.startsWith('average=')) {
+        const value = part.substring(8)
+        const numValue = parseInt(value)
+        options.average = isNaN(numValue) ? value : numValue
+        i++
+      } else if (part.startsWith('format=')) {
+        const value = part.substring(7)
+        if (value === 'short' || value === 'long' || value === 'extended') {
+          options.format = value
+        }
+        i++
+      } else {
+        // Assume it's a damage type
+        typeParts.push(part)
+        i++
+      }
+    }
+
+    if (typeParts.length > 0) {
+      options.type = typeParts.length === 1 ? typeParts[0] : typeParts
     }
   }
 

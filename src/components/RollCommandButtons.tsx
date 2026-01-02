@@ -6,6 +6,7 @@ import {
 	ABILITIES,
 	type AttackEnricherOptions,
 	type CheckEnricherOptions,
+	type DamageEnricherOptions,
 	createAbilityCheck,
 	createAttackRoll,
 	createCheckEnricher,
@@ -50,11 +51,13 @@ export default function RollCommandButtons({
 }: RollCommandButtonsProps) {
 	const [showAttackDialog, setShowAttackDialog] = useState(false);
 	const [showCheckDialog, setShowCheckDialog] = useState(false);
+	const [showDamageDialog, setShowDamageDialog] = useState(false);
 	const [checkDialogType, setCheckDialogType] = useState<
 		"check" | "skill" | "tool"
 	>("check");
 	const [attackOptions, setAttackOptions] = useState<AttackEnricherOptions>({});
 	const [checkOptions, setCheckOptions] = useState<CheckEnricherOptions>({});
+	const [damageOptions, setDamageOptions] = useState<DamageEnricherOptions>({});
 	const [editingPosition, setEditingPosition] = useState<number | null>(null);
 	const [isEditing, setIsEditing] = useState(false);
 	const passiveCheckId = useId();
@@ -83,6 +86,10 @@ export default function RollCommandButtons({
 				// Open attack dialog with parsed options
 				setAttackOptions(parsed.options as AttackEnricherOptions);
 				setShowAttackDialog(true);
+			} else if (parsed.type === "damage") {
+				// Open damage dialog with parsed options
+				setDamageOptions(parsed.options as DamageEnricherOptions);
+				setShowDamageDialog(true);
 			} else {
 				// Open check dialog with parsed options
 				setCheckDialogType(parsed.type);
@@ -103,10 +110,68 @@ export default function RollCommandButtons({
 	};
 
 	const handleDamageRoll = () => {
-		const formula = window.prompt("Enter damage formula (e.g., 1d6, 2d8+3):");
-		if (formula) {
-			insertRollCommand(createDamageRoll(formula));
+		setShowDamageDialog(true);
+		setDamageOptions({});
+		setIsEditing(false);
+		setEditingPosition(null);
+	};
+
+	const handleDamageDialogSubmit = () => {
+		const newCommand = createDamageRoll(damageOptions);
+
+		if (isEditing && editingPosition !== null) {
+			// Update existing command
+			const { state } = editor.view;
+			const { tr } = state;
+			const $pos = state.doc.resolve(editingPosition);
+
+			// Find the rollCommand node at this position
+			let nodePos = editingPosition;
+			let nodeSize = 0;
+
+			// Check if we're at the start of a rollCommand node
+			const node = $pos.nodeAfter;
+			if (node && node.type.name === "rollCommand") {
+				nodeSize = node.nodeSize;
+			} else {
+				// Try to find the node by checking parent nodes
+				for (let i = $pos.depth; i > 0; i--) {
+					const parent = $pos.node(i);
+					if (parent.type.name === "rollCommand") {
+						nodePos = $pos.start(i);
+						nodeSize = parent.nodeSize;
+						break;
+					}
+				}
+			}
+
+			if (nodeSize > 0) {
+				// Replace the node
+				tr.replaceWith(
+					nodePos,
+					nodePos + nodeSize,
+					state.schema.nodes.rollCommand.create({
+						command: newCommand,
+					}),
+				);
+				editor.view.dispatch(tr);
+			}
+		} else {
+			// Insert new command
+			insertRollCommand(newCommand);
 		}
+
+		setShowDamageDialog(false);
+		setDamageOptions({});
+		setIsEditing(false);
+		setEditingPosition(null);
+	};
+
+	const handleDamageDialogCancel = () => {
+		setShowDamageDialog(false);
+		setDamageOptions({});
+		setIsEditing(false);
+		setEditingPosition(null);
 	};
 
 	const handleSpellReference = () => {
@@ -804,6 +869,170 @@ export default function RollCommandButtons({
 							Cancel
 						</Button>
 						<Button onClick={handleAttackDialogSubmit}>
+							{isEditing ? "Update" : "Insert"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Damage Enricher Dialog */}
+			<Dialog
+				open={showDamageDialog}
+				onOpenChange={(open) => !open && handleDamageDialogCancel()}
+			>
+				<DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>
+							{isEditing ? "Edit" : "Insert"} Damage Enricher
+						</DialogTitle>
+					</DialogHeader>
+					<div className="flex flex-col gap-4">
+						<div className="flex flex-col gap-2">
+							<Label>
+								Formula (e.g., "2d6", "1d6 + @abilities.dex.mod", or leave empty for activity lookup):
+								<Input
+									type="text"
+									placeholder="2d6"
+									value={damageOptions.formula || ""}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+										setDamageOptions({
+											...damageOptions,
+											formula: value || undefined,
+										});
+									}}
+								/>
+							</Label>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							<Label>
+								Damage Type(s) (optional, separate multiple with commas or spaces):
+								<Input
+									type="text"
+									placeholder="fire, cold"
+									value={
+										Array.isArray(damageOptions.type)
+											? damageOptions.type.join(", ")
+											: damageOptions.type || ""
+									}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+										if (value === "") {
+											// eslint-disable-next-line @typescript-eslint/no-unused-vars
+											const { type, ...rest } = damageOptions;
+											setDamageOptions(rest);
+										} else {
+											// Try to split by comma first, then by space
+											const types = value
+												.split(/[,\s]+/)
+												.map((t) => t.trim())
+												.filter((t) => t);
+											setDamageOptions({
+												...damageOptions,
+												type: types.length > 1 ? types : types[0],
+											});
+										}
+									}}
+								/>
+							</Label>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							<Label>
+								Average (optional, leave empty for auto-calc, or enter custom value):
+								<Input
+									type="text"
+									placeholder="true or 5"
+									value={
+										damageOptions.average === true
+											? "true"
+											: damageOptions.average?.toString() || ""
+									}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+										if (value === "") {
+											// eslint-disable-next-line @typescript-eslint/no-unused-vars
+											const { average, ...rest } = damageOptions;
+											setDamageOptions(rest);
+										} else if (value.toLowerCase() === "true") {
+											setDamageOptions({
+												...damageOptions,
+												average: true,
+											});
+										} else {
+											const numValue = parseInt(value);
+											setDamageOptions({
+												...damageOptions,
+												average: Number.isNaN(numValue) ? value : numValue,
+											});
+										}
+									}}
+								/>
+							</Label>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							<Label>
+								Activity ID (optional):
+								<Input
+									type="text"
+									placeholder="RLQlsLo5InKHZadn"
+									value={damageOptions.activity || ""}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+										setDamageOptions({
+											...damageOptions,
+											activity: value || undefined,
+										});
+									}}
+								/>
+							</Label>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							<Label>
+								Format (optional):
+								<Select
+									value={damageOptions.format || "default"}
+									onValueChange={(value) => {
+										setDamageOptions({
+											...damageOptions,
+											format: (value === "default" ? undefined : value) as
+												| "short"
+												| "long"
+												| "extended"
+												| undefined,
+										});
+									}}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder="Default (Short)" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="default">Default (Short)</SelectItem>
+										<SelectItem value="short">Short</SelectItem>
+										<SelectItem value="long">Long</SelectItem>
+										<SelectItem value="extended">Extended</SelectItem>
+									</SelectContent>
+								</Select>
+							</Label>
+						</div>
+
+						<div className="mt-2 p-3 bg-muted rounded-md border border-border">
+							<strong className="block mb-2 text-sm text-muted-foreground">
+								Preview:
+							</strong>
+							<code className="block font-mono text-xs text-foreground break-all">
+								{createDamageRoll(damageOptions)}
+							</code>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button variant="outline" onClick={handleDamageDialogCancel}>
+							Cancel
+						</Button>
+						<Button onClick={handleDamageDialogSubmit}>
 							{isEditing ? "Update" : "Insert"}
 						</Button>
 					</DialogFooter>
