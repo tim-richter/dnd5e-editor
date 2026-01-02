@@ -64,7 +64,6 @@ export const createCheckEnricher = (
 		Array.isArray(options.skill) && options.skill.length > 1;
 	const isSingleSkill = options.skill && !Array.isArray(options.skill);
 	const isNumericDC = typeof options.dc === "number";
-	const isFormulaDC = typeof options.dc === "string";
 
 	// Simple ability check (shorthand)
 	if (options.ability && !options.skill && !hasOtherOptions) {
@@ -211,14 +210,14 @@ export const createCheckEnricher = (
 
 // Create a skill check roll command
 export const createSkillCheck = (
-	skill: Skill,
+	skill: Skill | string,
 	options?: Omit<CheckEnricherOptions, "skill">,
 ): string => {
 	return createCheckEnricher({ ...options, skill }, "skill");
 };
 
 export const createAbilityCheck = (
-	ability: Ability,
+	ability: Ability | string,
 	options?: Omit<CheckEnricherOptions, "ability">,
 ): string => {
 	return createCheckEnricher({ ...options, ability }, "check");

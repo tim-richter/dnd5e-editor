@@ -37,20 +37,20 @@ export const Aside = Node.create({
 		return {
 			setAside:
 				(attributes: { class: string }) =>
-				({ commands }) => {
+				({ commands }: { commands: any }) => {
 					return commands.wrapIn(this.name, attributes);
 				},
 			toggleAside:
 				(attributes: { class: string }) =>
-				({ commands }) => {
+				({ commands }: { commands: any }) => {
 					return commands.toggleWrap(this.name, attributes);
 				},
 			unsetAside:
 				() =>
-				({ commands }) => {
+				({ commands }: { commands: any }) => {
 					return commands.lift(this.name);
 				},
-		};
+		} as any;
 	},
 });
 
@@ -157,10 +157,10 @@ export const FVTTAdvice = Node.create({
 		return {
 			setFVTTAdvice:
 				(attributes: { class: string }) =>
-				({ commands }) => {
+				({ commands }: { commands: any }) => {
 					return commands.wrapIn(this.name, attributes);
 				},
-		};
+		} as any;
 	},
 });
 
@@ -202,10 +202,10 @@ export const FVTTNarrative = Node.create({
 		return {
 			setFVTTNarrative:
 				(attributes: { class: string }) =>
-				({ commands }) => {
+				({ commands }: { commands: any }) => {
 					return commands.wrapIn(this.name, attributes);
 				},
-		};
+		} as any;
 	},
 });
 
@@ -269,12 +269,12 @@ export const RollCommand = Node.create({
 		return {
 			setRollCommand:
 				(command: string) =>
-				({ commands }) => {
+				({ commands }: { commands: any }) => {
 					return commands.insertContent({
 						type: this.name,
 						attrs: { command },
 					});
 				},
-		};
+		} as any;
 	},
 });

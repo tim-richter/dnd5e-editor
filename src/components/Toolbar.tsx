@@ -56,14 +56,14 @@ export default function Toolbar({ editor, htmlContent = "" }: ToolbarProps) {
 			// Replace roll command spans with just the command text
 			cleanedHtml = cleanedHtml.replace(
 				/<span[^>]*data-command="([^"]*)"[^>]*class="roll-command"[^>]*>([^<]*)<\/span>/g,
-				(match, command) => {
+				(_match, command) => {
 					return unescapeHtml(command);
 				},
 			);
 
 			cleanedHtml = cleanedHtml.replace(
 				/<span[^>]*class="roll-command"[^>]*data-command="([^"]*)"[^>]*>([^<]*)<\/span>/g,
-				(match, command) => {
+				(_match, command) => {
 					return unescapeHtml(command);
 				},
 			);
