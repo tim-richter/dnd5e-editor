@@ -34,6 +34,10 @@ import {
 	DAMAGE_TYPE_REFERENCES,
 	SKILL_REFERENCES,
 } from "@/features/dnd/rolls/reference/references";
+import {
+	createSaveEnricher,
+	type SaveEnricherOptions,
+} from "@/features/dnd/rolls/save/saveRoll";
 import { SKILLS } from "@/features/dnd/skills/skills";
 import { createSavingThrow } from "@/utils/rollCommands";
 import { parseRollCommand } from "../features/dnd/rolls/parser";
@@ -75,6 +79,7 @@ export default function RollCommandButtons({
 	const [showHealDialog, setShowHealDialog] = useState(false);
 	const [showItemDialog, setShowItemDialog] = useState(false);
 	const [showReferenceDialog, setShowReferenceDialog] = useState(false);
+	const [showSaveDialog, setShowSaveDialog] = useState(false);
 	const [checkDialogType, setCheckDialogType] = useState<
 		"check" | "skill" | "tool"
 	>("check");
@@ -85,11 +90,13 @@ export default function RollCommandButtons({
 	const [itemOptions, setItemOptions] = useState<ItemEnricherOptions>({});
 	const [referenceOptions, setReferenceOptions] =
 		useState<ReferenceEnricherOptions>({});
+	const [saveOptions, setSaveOptions] = useState<SaveEnricherOptions>({});
 	const [itemMethod, setItemMethod] = useState<"name" | "uuid" | "relativeId">(
 		"name",
 	);
 	const [editingPosition, setEditingPosition] = useState<number | null>(null);
 	const [isEditing, setIsEditing] = useState(false);
+	const [isConcentration, setIsConcentration] = useState(false);
 	const passiveCheckId = useId();
 
 	// Listen for roll command click events
@@ -150,6 +157,11 @@ export default function RollCommandButtons({
 				setCheckDialogType(parsed.type);
 				setCheckOptions(parsed.options as CheckEnricherOptions);
 				setShowCheckDialog(true);
+			} else if (parsed.type === "save" || parsed.type === "concentration") {
+				// Open save dialog with parsed options
+				setIsConcentration(parsed.type === "concentration");
+				setSaveOptions(parsed.options as SaveEnricherOptions);
+				setShowSaveDialog(true);
 			}
 		};
 
@@ -556,6 +568,74 @@ export default function RollCommandButtons({
 		setEditingPosition(null);
 	};
 
+	const handleSaveRoll = () => {
+		setShowSaveDialog(true);
+		setSaveOptions({});
+		setIsEditing(false);
+		setEditingPosition(null);
+		setIsConcentration(false);
+	};
+
+	const handleSaveDialogSubmit = () => {
+		const newCommand = createSaveEnricher(saveOptions, isConcentration);
+
+		if (isEditing && editingPosition !== null) {
+			// Update existing command
+			const { state } = editor.view;
+			const { tr } = state;
+			const $pos = state.doc.resolve(editingPosition);
+
+			// Find the rollCommand node at this position
+			let nodePos = editingPosition;
+			let nodeSize = 0;
+
+			// Check if we're at the start of a rollCommand node
+			const node = $pos.nodeAfter;
+			if (node && node.type.name === "rollCommand") {
+				nodeSize = node.nodeSize;
+			} else {
+				// Try to find the node by checking parent nodes
+				for (let i = $pos.depth; i > 0; i--) {
+					const parent = $pos.node(i);
+					if (parent.type.name === "rollCommand") {
+						nodePos = $pos.start(i);
+						nodeSize = parent.nodeSize;
+						break;
+					}
+				}
+			}
+
+			if (nodeSize > 0) {
+				// Replace the node
+				tr.replaceWith(
+					nodePos,
+					nodePos + nodeSize,
+					state.schema.nodes.rollCommand.create({
+						command: newCommand,
+					}),
+				);
+				editor.view.dispatch(tr);
+			}
+		} else {
+			// Insert new command
+			insertRollCommand(newCommand);
+		}
+
+		setShowSaveDialog(false);
+		setSaveOptions({});
+		setIsEditing(false);
+		setEditingPosition(null);
+		setIsConcentration(false);
+	};
+
+	const handleSaveDialogCancel = () => {
+		setShowSaveDialog(false);
+		setSaveOptions({});
+		setIsEditing(false);
+		setEditingPosition(null);
+		setIsConcentration(false);
+	};
+
 	return (
 		<div className="flex gap-0.5 border-r border-border pr-2 mr-2">
 			<DropdownMenu>
@@ -638,6 +718,13 @@ export default function RollCommandButtons({
 							{ability.charAt(0).toUpperCase() + ability.slice(1)}
 						</DropdownMenuItem>
 					))}
+					<DropdownMenuSeparator />
+					<DropdownMenuItem
+						onSelect={handleSaveRoll}
+						className="font-semibold"
+					>
+						Advanced Options...
+					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
 
@@ -1697,6 +1784,141 @@ export default function RollCommandButtons({
 							Cancel
 						</Button>
 						<Button onClick={handleItemDialogSubmit}>
+							{isEditing ? "Update" : "Insert"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Save Enricher Dialog */}
+			<Dialog
+				open={showSaveDialog}
+				onOpenChange={(open) => !open && handleSaveDialogCancel()}
+			>
+				<DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>
+							{isEditing ? "Edit" : "Insert"}{" "}
+							{isConcentration ? "Concentration" : "Save"} Enricher
+						</DialogTitle>
+					</DialogHeader>
+					<div className="flex flex-col gap-4">
+						<div className="flex flex-col gap-2">
+							<Label>
+								Ability(ies) (optional, separate multiple with commas):
+								<Input
+									type="text"
+									placeholder="dexterity or strength, dexterity"
+									value={
+										Array.isArray(saveOptions.ability)
+											? saveOptions.ability.join(", ")
+											: saveOptions.ability?.toString() || ""
+									}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+										if (value === "") {
+											// eslint-disable-next-line @typescript-eslint/no-unused-vars
+											const { ability, ...rest } = saveOptions;
+											setSaveOptions(rest);
+										} else {
+											const abilities = value
+												.split(",")
+												.map((a) => a.trim())
+												.filter((a) => a);
+											setSaveOptions({
+												...saveOptions,
+												ability: abilities.length > 1 ? abilities : abilities[0],
+											});
+										}
+									}}
+								/>
+							</Label>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							<Label>
+								DC (optional, number or formula like "@abilities.con.dc"):
+								<Input
+									type="text"
+									placeholder="15 or @abilities.con.dc"
+									value={saveOptions.dc?.toString() || ""}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+										if (value === "") {
+											// eslint-disable-next-line @typescript-eslint/no-unused-vars
+											const { dc, ...rest } = saveOptions;
+											setSaveOptions(rest);
+										} else {
+											const numValue = parseInt(value);
+											setSaveOptions({
+												...saveOptions,
+												dc: Number.isNaN(numValue) ? value : numValue,
+											});
+										}
+									}}
+								/>
+							</Label>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							<Label>
+								Format (optional):
+								<Select
+									value={saveOptions.format || "default"}
+									onValueChange={(value) => {
+										setSaveOptions({
+											...saveOptions,
+											format: (value === "default" ? undefined : value) as
+												| "short"
+												| "long"
+												| undefined,
+										});
+									}}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder="Default" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="default">Default</SelectItem>
+										<SelectItem value="short">Short</SelectItem>
+										<SelectItem value="long">Long</SelectItem>
+									</SelectContent>
+								</Select>
+							</Label>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							<Label>
+								Activity ID (optional):
+								<Input
+									type="text"
+									placeholder="RLQlsLo5InKHZadn"
+									value={saveOptions.activity || ""}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+										setSaveOptions({
+											...saveOptions,
+											activity: value || undefined,
+										});
+									}}
+								/>
+							</Label>
+						</div>
+
+						<div className="mt-2 p-3 bg-muted rounded-md border border-border">
+							<strong className="block mb-2 text-sm text-muted-foreground">
+								Preview:
+							</strong>
+							<code className="block font-mono text-xs text-foreground break-all">
+								{createSaveEnricher(saveOptions, isConcentration)}
+							</code>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button variant="outline" onClick={handleSaveDialogCancel}>
+							Cancel
+						</Button>
+						<Button onClick={handleSaveDialogSubmit}>
 							{isEditing ? "Update" : "Insert"}
 						</Button>
 					</DialogFooter>
