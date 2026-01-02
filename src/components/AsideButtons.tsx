@@ -1,4 +1,5 @@
 import { Editor } from '@tiptap/react'
+import { MessageSquare, BookOpen, Star } from 'lucide-react'
 import { Button } from './ui/button'
 
 interface AsideButtonsProps {
@@ -7,10 +8,10 @@ interface AsideButtonsProps {
 
 type BlockType = 'advice' | 'narrative' | 'notable'
 
-const blockTypes: { type: BlockType; label: string; icon: string }[] = [
-  { type: 'advice', label: 'Advice/Quest', icon: '💬' },
-  { type: 'narrative', label: 'Narrative', icon: '📖' },
-  { type: 'notable', label: 'Notable', icon: '⭐' },
+const blockTypes: { type: BlockType; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { type: 'advice', label: 'Advice/Quest', icon: MessageSquare },
+  { type: 'narrative', label: 'Narrative', icon: BookOpen },
+  { type: 'notable', label: 'Notable', icon: Star },
 ]
 
 export default function AsideButtons({ editor }: AsideButtonsProps) {
@@ -58,7 +59,7 @@ export default function AsideButtons({ editor }: AsideButtonsProps) {
 
   return (
     <div className="flex gap-0.5 border-r border-border pr-2 mr-2">
-      {blockTypes.map(({ type, label, icon }) => (
+      {blockTypes.map(({ type, label, icon: Icon }) => (
         <Button
           key={type}
           variant="ghost"
@@ -66,7 +67,7 @@ export default function AsideButtons({ editor }: AsideButtonsProps) {
           onClick={() => insertBlock(type)}
           title={`Insert ${label} Block`}
         >
-          {icon}
+          <Icon className="size-4" />
         </Button>
       ))}
     </div>

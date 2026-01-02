@@ -1,5 +1,6 @@
 import type { Editor } from "@tiptap/react";
 import { useState } from "react";
+import { Download, Heading1, Heading2, Heading3, Bold, Italic, Underline, List, ListOrdered, Link, AlignLeft, AlignCenter, AlignRight, Undo, Redo } from "lucide-react";
 import { parseRollCommand } from "../utils/rollCommandParser";
 import AsideButtons from "./AsideButtons";
 import ImportModal from "./ImportModal";
@@ -59,7 +60,8 @@ export default function Toolbar({ editor }: ToolbarProps) {
 							onClick={() => setIsImportModalOpen(true)}
 							title="Import HTML"
 						>
-							📥 Import
+							<Download className="size-4 mr-1" />
+							Import
 						</Button>
 					</div>
 					<div className="flex gap-0.5 border-r border-border pr-2 mr-2">
@@ -73,7 +75,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
 							}
 							title="Heading 1"
 						>
-							H1
+							<Heading1 className="size-4" />
 						</Button>
 						<Button
 							variant={
@@ -85,7 +87,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
 							}
 							title="Heading 2"
 						>
-							H2
+							<Heading2 className="size-4" />
 						</Button>
 						<Button
 							variant={
@@ -97,7 +99,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
 							}
 							title="Heading 3"
 						>
-							H3
+							<Heading3 className="size-4" />
 						</Button>
 					</div>
 
@@ -108,7 +110,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
 							onClick={() => editor.chain().focus().toggleBold().run()}
 							title="Bold"
 						>
-							<strong>B</strong>
+							<Bold className="size-4" />
 						</Button>
 						<Button
 							variant={editor.isActive("italic") ? "default" : "ghost"}
@@ -116,7 +118,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
 							onClick={() => editor.chain().focus().toggleItalic().run()}
 							title="Italic"
 						>
-							<em>I</em>
+							<Italic className="size-4" />
 						</Button>
 						<Button
 							variant={editor.isActive("underline") ? "default" : "ghost"}
@@ -124,7 +126,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
 							onClick={() => editor.chain().focus().toggleUnderline().run()}
 							title="Underline"
 						>
-							<u>U</u>
+							<Underline className="size-4" />
 						</Button>
 					</div>
 
@@ -135,7 +137,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
 							onClick={() => editor.chain().focus().toggleBulletList().run()}
 							title="Bullet List"
 						>
-							•
+							<List className="size-4" />
 						</Button>
 						<Button
 							variant={editor.isActive("orderedList") ? "default" : "ghost"}
@@ -143,7 +145,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
 							onClick={() => editor.chain().focus().toggleOrderedList().run()}
 							title="Numbered List"
 						>
-							1.
+							<ListOrdered className="size-4" />
 						</Button>
 					</div>
 
@@ -159,7 +161,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
 							}}
 							title="Insert Link"
 						>
-							🔗
+							<Link className="size-4" />
 						</Button>
 					</div>
 
@@ -172,7 +174,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
 							onClick={() => editor.chain().focus().setTextAlign("left").run()}
 							title="Align Left"
 						>
-							⬅
+							<AlignLeft className="size-4" />
 						</Button>
 						<Button
 							variant={
@@ -184,7 +186,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
 							}
 							title="Align Center"
 						>
-							⬌
+							<AlignCenter className="size-4" />
 						</Button>
 						<Button
 							variant={
@@ -194,7 +196,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
 							onClick={() => editor.chain().focus().setTextAlign("right").run()}
 							title="Align Right"
 						>
-							➡
+							<AlignRight className="size-4" />
 						</Button>
 					</div>
 
@@ -206,7 +208,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
 							disabled={!editor.can().undo()}
 							title="Undo"
 						>
-							↶
+							<Undo className="size-4" />
 						</Button>
 						<Button
 							variant="ghost"
@@ -215,7 +217,7 @@ export default function Toolbar({ editor }: ToolbarProps) {
 							disabled={!editor.can().redo()}
 							title="Redo"
 						>
-							↷
+							<Redo className="size-4" />
 						</Button>
 					</div>
 				</div>

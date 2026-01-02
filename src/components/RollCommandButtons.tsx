@@ -1,4 +1,5 @@
 import type { Editor } from "@tiptap/react";
+import { ChevronDown } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { parseRollCommand } from "../utils/rollCommandParser";
 import {
@@ -264,7 +265,7 @@ export default function RollCommandButtons({
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<Button variant="ghost" size="sm" title="Skill Check">
-						Skill Check ▼
+						Skill Check <ChevronDown className="size-4 ml-1" />
 					</Button>
 				</DropdownMenuTrigger>
 
@@ -294,7 +295,7 @@ export default function RollCommandButtons({
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<Button variant="ghost" size="sm" title="Ability Check">
-						Ability Check ▼
+						Ability Check <ChevronDown className="size-4 ml-1" />
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent
@@ -324,7 +325,7 @@ export default function RollCommandButtons({
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<Button variant="ghost" size="sm" title="Saving Throw">
-						Saving Throw ▼
+						Saving Throw <ChevronDown className="size-4 ml-1" />
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent
@@ -347,7 +348,7 @@ export default function RollCommandButtons({
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<Button variant="ghost" size="sm" title="Attack Roll">
-						Attack Roll ▼
+						Attack Roll <ChevronDown className="size-4 ml-1" />
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent
