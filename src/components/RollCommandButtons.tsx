@@ -24,8 +24,18 @@ import {
 	createItemEnricher,
 	type ItemEnricherOptions,
 } from "@/features/dnd/rolls/item/itemEnricher";
+import {
+	createReferenceEnricher,
+	type ReferenceEnricherOptions,
+} from "@/features/dnd/rolls/reference/referenceEnricher";
+import {
+	ABILITY_REFERENCES,
+	CONDITION_REFERENCES,
+	DAMAGE_TYPE_REFERENCES,
+	SKILL_REFERENCES,
+} from "@/features/dnd/rolls/reference/references";
 import { SKILLS } from "@/features/dnd/skills/skills";
-import { createSavingThrow, createSpellReference } from "@/utils/rollCommands";
+import { createSavingThrow } from "@/utils/rollCommands";
 import { parseRollCommand } from "../features/dnd/rolls/parser";
 import { Button } from "./ui/button";
 import {
@@ -64,6 +74,7 @@ export default function RollCommandButtons({
 	const [showDamageDialog, setShowDamageDialog] = useState(false);
 	const [showHealDialog, setShowHealDialog] = useState(false);
 	const [showItemDialog, setShowItemDialog] = useState(false);
+	const [showReferenceDialog, setShowReferenceDialog] = useState(false);
 	const [checkDialogType, setCheckDialogType] = useState<
 		"check" | "skill" | "tool"
 	>("check");
@@ -72,6 +83,8 @@ export default function RollCommandButtons({
 	const [damageOptions, setDamageOptions] = useState<DamageEnricherOptions>({});
 	const [healOptions, setHealOptions] = useState<HealEnricherOptions>({});
 	const [itemOptions, setItemOptions] = useState<ItemEnricherOptions>({});
+	const [referenceOptions, setReferenceOptions] =
+		useState<ReferenceEnricherOptions>({});
 	const [itemMethod, setItemMethod] = useState<"name" | "uuid" | "relativeId">(
 		"name",
 	);
@@ -124,6 +137,10 @@ export default function RollCommandButtons({
 					setItemMethod("name");
 				}
 				setShowItemDialog(true);
+			} else if (parsed.type === "reference") {
+				// Open reference dialog with parsed options
+				setReferenceOptions(parsed.options as ReferenceEnricherOptions);
+				setShowReferenceDialog(true);
 			} else if (
 				parsed.type === "check" ||
 				parsed.type === "skill" ||
@@ -277,13 +294,6 @@ export default function RollCommandButtons({
 		setEditingPosition(null);
 	};
 
-	const handleSpellReference = () => {
-		const spellName = window.prompt("Enter spell name:");
-		if (spellName) {
-			insertRollCommand(createSpellReference(spellName));
-		}
-	};
-
 	const handleItemReference = () => {
 		setShowItemDialog(true);
 		setItemOptions({});
@@ -343,10 +353,74 @@ export default function RollCommandButtons({
 		setEditingPosition(null);
 	};
 
+	const handleReferenceEnricher = () => {
+		setShowReferenceDialog(true);
+		setReferenceOptions({});
+		setIsEditing(false);
+		setEditingPosition(null);
+	};
+
 	const handleItemDialogCancel = () => {
 		setShowItemDialog(false);
 		setItemOptions({});
 		setItemMethod("name");
+		setIsEditing(false);
+		setEditingPosition(null);
+	};
+
+	const handleReferenceDialogSubmit = () => {
+		const newCommand = createReferenceEnricher(referenceOptions);
+
+		if (isEditing && editingPosition !== null) {
+			// Update existing command
+			const { state } = editor.view;
+			const { tr } = state;
+			const $pos = state.doc.resolve(editingPosition);
+
+			// Find the rollCommand node at this position
+			let nodePos = editingPosition;
+			let nodeSize = 0;
+
+			// Check if we're at the start of a rollCommand node
+			const node = $pos.nodeAfter;
+			if (node && node.type.name === "rollCommand") {
+				nodeSize = node.nodeSize;
+			} else {
+				// Try to find the node by checking parent nodes
+				for (let i = $pos.depth; i > 0; i--) {
+					const parent = $pos.node(i);
+					if (parent.type.name === "rollCommand") {
+						nodePos = $pos.start(i);
+						nodeSize = parent.nodeSize;
+						break;
+					}
+				}
+			}
+
+			if (nodeSize > 0) {
+				// Replace the node
+				tr.replaceWith(
+					nodePos,
+					nodePos + nodeSize,
+					editor.schema.nodes.rollCommand.create({ command: newCommand }),
+				);
+				editor.view.dispatch(tr);
+			}
+		} else {
+			// Insert new command
+			insertRollCommand(newCommand);
+		}
+
+		// Close dialog and reset state
+		setShowReferenceDialog(false);
+		setReferenceOptions({});
+		setIsEditing(false);
+		setEditingPosition(null);
+	};
+
+	const handleReferenceDialogCancel = () => {
+		setShowReferenceDialog(false);
+		setReferenceOptions({});
 		setIsEditing(false);
 		setEditingPosition(null);
 	};
@@ -414,12 +488,6 @@ export default function RollCommandButtons({
 		setAttackOptions({});
 		setIsEditing(false);
 		setEditingPosition(null);
-	};
-
-	const handleDefaultAttack = () => {
-		// Insert default attack enricher with +5 to hit
-		// This is a common default for simple attack rolls
-		insertRollCommand(createAttackRoll({ formula: 5 }));
 	};
 
 	const handleCheckEnricher = (type: "check" | "skill" | "tool" = "check") => {
@@ -583,14 +651,27 @@ export default function RollCommandButtons({
 					className="max-h-[300px] overflow-y-auto min-w-[180px]"
 					align="start"
 				>
-					{ABILITIES.map((ability) => (
-						<DropdownMenuItem
-							key={ability}
-							onSelect={() => handleDefaultAttack()}
-						>
-							{ability.charAt(0).toUpperCase() + ability.slice(1)} Attack
-						</DropdownMenuItem>
-					))}
+					<DropdownMenuItem
+						onSelect={() => {
+							insertRollCommand(createAttackRoll({ attackMode: "melee" }));
+						}}
+					>
+						Melee
+					</DropdownMenuItem>
+					<DropdownMenuItem
+						onSelect={() => {
+							insertRollCommand(createAttackRoll({ attackMode: "ranged" }));
+						}}
+					>
+						Ranged
+					</DropdownMenuItem>
+					<DropdownMenuItem
+						onSelect={() => {
+							insertRollCommand(createAttackRoll({ attackMode: "thrown" }));
+						}}
+					>
+						Thrown
+					</DropdownMenuItem>
 					<DropdownMenuSeparator />
 					<DropdownMenuItem
 						onSelect={handleAttackRoll}
@@ -620,19 +701,112 @@ export default function RollCommandButtons({
 			<Button
 				variant="ghost"
 				size="sm"
-				onClick={handleSpellReference}
-				title="Spell Reference"
-			>
-				Spell
-			</Button>
-			<Button
-				variant="ghost"
-				size="sm"
 				onClick={handleItemReference}
 				title="Item Reference"
 			>
 				Item
 			</Button>
+
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<Button variant="ghost" size="sm" title="Reference">
+						Reference <ChevronDown className="size-4 ml-1" />
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent
+					className="max-h-[400px] overflow-y-auto min-w-[200px]"
+					align="start"
+				>
+					<DropdownMenuItem
+						onSelect={handleReferenceEnricher}
+						className="font-semibold"
+					>
+						Advanced Options...
+					</DropdownMenuItem>
+					<DropdownMenuSeparator />
+					<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+						Conditions
+					</div>
+					{CONDITION_REFERENCES.map((condition) => (
+						<DropdownMenuItem
+							key={condition}
+							onSelect={() => {
+								insertRollCommand(
+									createReferenceEnricher({
+										category: "condition",
+										rule: condition,
+									}),
+								);
+							}}
+						>
+							{condition
+								.replace(/([A-Z])/g, " $1")
+								.replace(/^./, (str) => str.toUpperCase())
+								.trim()}
+						</DropdownMenuItem>
+					))}
+					<DropdownMenuSeparator />
+					<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+						Abilities
+					</div>
+					{ABILITY_REFERENCES.map((ability) => (
+						<DropdownMenuItem
+							key={ability}
+							onSelect={() => {
+								insertRollCommand(
+									createReferenceEnricher({
+										category: "ability",
+										rule: ability,
+									}),
+								);
+							}}
+						>
+							{ability.charAt(0).toUpperCase() + ability.slice(1)}
+						</DropdownMenuItem>
+					))}
+					<DropdownMenuSeparator />
+					<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+						Skills
+					</div>
+					{SKILL_REFERENCES.slice(0, 10).map((skill) => (
+						<DropdownMenuItem
+							key={skill}
+							onSelect={() => {
+								insertRollCommand(
+									createReferenceEnricher({
+										category: "skill",
+										rule: skill,
+									}),
+								);
+							}}
+						>
+							{skill
+								.replace(/([A-Z])/g, " $1")
+								.replace(/^./, (str) => str.toUpperCase())
+								.trim()}
+						</DropdownMenuItem>
+					))}
+					<DropdownMenuSeparator />
+					<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+						Damage Types
+					</div>
+					{DAMAGE_TYPE_REFERENCES.slice(0, 8).map((damageType) => (
+						<DropdownMenuItem
+							key={damageType}
+							onSelect={() => {
+								insertRollCommand(
+									createReferenceEnricher({
+										category: "damageType",
+										rule: damageType,
+									}),
+								);
+							}}
+						>
+							{damageType.charAt(0).toUpperCase() + damageType.slice(1)}
+						</DropdownMenuItem>
+					))}
+				</DropdownMenuContent>
+			</DropdownMenu>
 
 			{/* Check Enricher Dialog */}
 			<Dialog
@@ -1523,6 +1697,128 @@ export default function RollCommandButtons({
 							Cancel
 						</Button>
 						<Button onClick={handleItemDialogSubmit}>
+							{isEditing ? "Update" : "Insert"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Reference Enricher Dialog */}
+			<Dialog
+				open={showReferenceDialog}
+				onOpenChange={(open) => !open && handleReferenceDialogCancel()}
+			>
+				<DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>
+							{isEditing ? "Edit" : "Insert"} Reference Enricher
+						</DialogTitle>
+					</DialogHeader>
+					<div className="flex flex-col gap-4">
+						<div className="flex flex-col gap-2">
+							<Label>
+								Category (optional):
+								<Select
+									value={referenceOptions.category || "none"}
+									onValueChange={(value) => {
+										setReferenceOptions({
+											...referenceOptions,
+											category:
+												value === "none"
+													? undefined
+													: (value as ReferenceEnricherOptions["category"]),
+										});
+									}}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder="Auto-detect" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="none">Auto-detect</SelectItem>
+										<SelectItem value="ability">Ability</SelectItem>
+										<SelectItem value="skill">Skill</SelectItem>
+										<SelectItem value="condition">Condition</SelectItem>
+										<SelectItem value="damageType">Damage Type</SelectItem>
+										<SelectItem value="creatureType">Creature Type</SelectItem>
+										<SelectItem value="areaOfEffect">Area of Effect</SelectItem>
+										<SelectItem value="spellComponent">
+											Spell Component
+										</SelectItem>
+										<SelectItem value="spellSchool">Spell School</SelectItem>
+										<SelectItem value="otherRuleset">Other Ruleset</SelectItem>
+										<SelectItem value="rule">Generic Rule</SelectItem>
+									</SelectContent>
+								</Select>
+							</Label>
+							<p className="text-xs text-muted-foreground">
+								If not specified, the category will be inferred from the rule
+								name.
+							</p>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							<Label>
+								Rule Name:
+								<Input
+									type="text"
+									placeholder="prone, strength, Difficult Terrain..."
+									value={referenceOptions.rule || ""}
+									onChange={(e) => {
+										setReferenceOptions({
+											...referenceOptions,
+											rule: e.target.value.trim() || undefined,
+										});
+									}}
+								/>
+							</Label>
+							<p className="text-xs text-muted-foreground">
+								The name of the rule being referenced. Can be a condition,
+								ability, skill, damage type, or any other rule name.
+							</p>
+						</div>
+
+						{referenceOptions.category === "condition" ||
+						(!referenceOptions.category &&
+							referenceOptions.rule &&
+							CONDITION_REFERENCES.some(
+								(ref) =>
+									ref.toLowerCase() === referenceOptions.rule?.toLowerCase(),
+							)) ? (
+							<div className="flex flex-col gap-2">
+								<Label className="flex items-center gap-2">
+									<input
+										type="checkbox"
+										checked={referenceOptions.apply !== false}
+										onChange={(e) => {
+											setReferenceOptions({
+												...referenceOptions,
+												apply: e.target.checked ? undefined : false,
+											});
+										}}
+									/>
+									<span>Show apply button (default: true)</span>
+								</Label>
+								<p className="text-xs text-muted-foreground">
+									When unchecked, the apply condition button will not appear for
+									condition references.
+								</p>
+							</div>
+						) : null}
+
+						<div className="mt-2 p-3 bg-muted rounded-md border border-border">
+							<strong className="block mb-2 text-sm text-muted-foreground">
+								Preview:
+							</strong>
+							<code className="block font-mono text-xs text-foreground break-all">
+								{createReferenceEnricher(referenceOptions)}
+							</code>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button variant="outline" onClick={handleReferenceDialogCancel}>
+							Cancel
+						</Button>
+						<Button onClick={handleReferenceDialogSubmit}>
 							{isEditing ? "Update" : "Insert"}
 						</Button>
 					</DialogFooter>

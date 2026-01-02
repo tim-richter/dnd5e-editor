@@ -7,6 +7,9 @@ import type { CheckEnricherOptions } from "@/features/dnd/rolls/check/checkRoll"
 import type { DamageEnricherOptions } from "@/features/dnd/rolls/damage/damageRoll";
 import type { HealEnricherOptions } from "@/features/dnd/rolls/heal/healRoll";
 import type { ItemEnricherOptions } from "@/features/dnd/rolls/item/itemEnricher";
+import type {
+	ReferenceEnricherOptions,
+} from "@/features/dnd/rolls/reference/referenceEnricher";
 import type { SaveEnricherOptions } from "@/features/dnd/rolls/save/saveRoll";
 import { isSkill, normalizeSkill } from "@/features/dnd/skills/skills";
 
@@ -27,6 +30,10 @@ import { isSkill, normalizeSkill } from "@/features/dnd/skills/skills";
  * - [[/item Bite]]
  * - [[/item Bite activity=Poison]]
  * - [[/item Actor.p26xCjCCTQm5fRN3.Item.amUUCouL69OK1GZU]]
+ * - &Reference[prone]
+ * - &Reference[condition=prone]
+ * - &Reference[blinded apply=false]
+ * - &Reference[rule="Difficult Terrain"]
  */
 export function parseRollCommand(command: string): {
 	type:
@@ -38,16 +45,28 @@ export function parseRollCommand(command: string): {
 		| "heal"
 		| "item"
 		| "save"
-		| "concentration";
+		| "concentration"
+		| "reference";
 	options:
 		| CheckEnricherOptions
 		| AttackEnricherOptions
 		| DamageEnricherOptions
 		| HealEnricherOptions
 		| ItemEnricherOptions
-		| SaveEnricherOptions;
+		| SaveEnricherOptions
+		| ReferenceEnricherOptions;
 	originalCommand: string;
 } | null {
+	// Match reference enricher pattern: &Reference[...]
+	const referenceMatch = command.match(/&Reference\[([^\]]*)\]/);
+	if (referenceMatch) {
+		return {
+			type: "reference",
+			options: parseReferenceCommand(referenceMatch[1]),
+			originalCommand: command,
+		};
+	}
+
 	// Match roll command pattern: [[/type ...]]
 	const match = command.match(
 		/\[\[\/(check|skill|tool|attack|damage|heal|item|save|concentration)([^\]]*)\]\]/,
@@ -105,6 +124,163 @@ export function parseRollCommand(command: string): {
 			originalCommand: command,
 		};
 	}
+}
+
+/**
+ * Parses a reference enricher command body
+ */
+function parseReferenceCommand(body: string): ReferenceEnricherOptions {
+	const options: ReferenceEnricherOptions = {};
+
+	if (!body) {
+		return options;
+	}
+
+	// Check for explicit key=value format (category=rule, not just apply=)
+	// Explicit format means we have a category=rule pattern
+	const hasExplicitFormat =
+		body.includes("=") &&
+		/^(ability|skill|condition|creatureType|damageType|areaOfEffect|spellComponent|spellSchool|otherRuleset|rule)=/.test(
+			body.trim(),
+		);
+
+	if (hasExplicitFormat) {
+		// Parse explicit format: condition=prone apply=false
+		// Handle quoted values that may contain spaces
+		const parts: string[] = [];
+		let currentPart = "";
+		let inQuotes = false;
+		let quoteChar = "";
+
+		for (let i = 0; i < body.length; i++) {
+			const char = body[i];
+			if ((char === '"' || char === "'") && (i === 0 || body[i - 1] !== "\\")) {
+				if (!inQuotes) {
+					inQuotes = true;
+					quoteChar = char;
+					currentPart += char;
+				} else if (char === quoteChar) {
+					inQuotes = false;
+					currentPart += char;
+				} else {
+					currentPart += char;
+				}
+			} else if (char === " " && !inQuotes) {
+				if (currentPart.trim()) {
+					parts.push(currentPart.trim());
+					currentPart = "";
+				}
+			} else {
+				currentPart += char;
+			}
+		}
+
+		if (currentPart.trim()) {
+			parts.push(currentPart.trim());
+		}
+
+		for (const part of parts) {
+			if (part.startsWith("apply=")) {
+				// Handle apply option
+				const value = part.substring(6); // Remove "apply="
+				options.apply = value === "false" ? false : undefined;
+				continue;
+			}
+
+			// Handle category=rule format
+			const [key, ...valueParts] = part.split("=");
+			const value = valueParts.join("="); // Handle values that might contain '='
+
+			// Check if key is a valid category
+			const validCategories = [
+				"ability",
+				"skill",
+				"condition",
+				"creatureType",
+				"damageType",
+				"areaOfEffect",
+				"spellComponent",
+				"spellSchool",
+				"otherRuleset",
+				"rule",
+			];
+
+			if (validCategories.includes(key)) {
+				options.category = key as ReferenceEnricherOptions["category"];
+				// Remove quotes if present
+				let ruleValue = value;
+				if (
+					(ruleValue.startsWith('"') && ruleValue.endsWith('"')) ||
+					(ruleValue.startsWith("'") && ruleValue.endsWith("'"))
+				) {
+					ruleValue = ruleValue.slice(1, -1);
+				}
+				options.rule = ruleValue || undefined;
+			}
+		}
+	} else {
+		// Parse inferred format: prone, blinded apply=false, etc.
+		// Handle quoted values that may contain spaces
+		const parts: string[] = [];
+		let currentPart = "";
+		let inQuotes = false;
+		let quoteChar = "";
+
+		for (let i = 0; i < body.length; i++) {
+			const char = body[i];
+			if ((char === '"' || char === "'") && (i === 0 || body[i - 1] !== "\\")) {
+				if (!inQuotes) {
+					inQuotes = true;
+					quoteChar = char;
+					currentPart += char;
+				} else if (char === quoteChar) {
+					inQuotes = false;
+					currentPart += char;
+					parts.push(currentPart);
+					currentPart = "";
+				} else {
+					currentPart += char;
+				}
+			} else if (char === " " && !inQuotes) {
+				if (currentPart.trim()) {
+					parts.push(currentPart.trim());
+					currentPart = "";
+				}
+			} else {
+				currentPart += char;
+			}
+		}
+
+		if (currentPart.trim()) {
+			parts.push(currentPart.trim());
+		}
+
+		// First pass: collect apply option
+		// Second pass: collect rule (first non-option part)
+		let ruleFound = false;
+
+		for (const part of parts) {
+			if (part.startsWith("apply=")) {
+				// Handle apply option
+				const value = part.substring(6);
+				options.apply = value === "false" ? false : undefined;
+			} else if (!ruleFound) {
+				// First non-option part is the rule name
+				// Remove quotes if present
+				let ruleValue = part;
+				if (
+					(ruleValue.startsWith('"') && ruleValue.endsWith('"')) ||
+					(ruleValue.startsWith("'") && ruleValue.endsWith("'"))
+				) {
+					ruleValue = ruleValue.slice(1, -1);
+				}
+				options.rule = ruleValue;
+				ruleFound = true;
+			}
+		}
+	}
+
+	return options;
 }
 
 /**

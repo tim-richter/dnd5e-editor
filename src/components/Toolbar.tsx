@@ -72,7 +72,16 @@ export default function Toolbar({ editor, htmlContent = "" }: ToolbarProps) {
 				/<span[^>]*data-command="([^"]*)"[^>]*>([^<]*)<\/span>/g,
 				(match, command) => {
 					const unescaped = unescapeHtml(command);
-					if (unescaped.match(/\[\[\/(check|skill|tool|attack)/)) {
+					// Handle roll commands: [[/check ...]], [[/skill ...]], etc.
+					if (
+						unescaped.match(
+							/\[\[\/(check|skill|tool|attack|damage|heal|item|save|concentration)/,
+						)
+					) {
+						return unescaped;
+					}
+					// Handle reference enrichers: &Reference[...]
+					if (unescaped.match(/&Reference\[/)) {
 						return unescaped;
 					}
 					return match;
@@ -92,9 +101,31 @@ export default function Toolbar({ editor, htmlContent = "" }: ToolbarProps) {
 	 * Processes HTML to detect and convert plain text roll commands to proper span elements
 	 */
 	function processHtmlForRollCommands(html: string): string {
-		// Match roll command patterns: [[/check ...]], [[/skill ...]], [[/tool ...]], [[/attack ...]]
+		// First, handle reference enrichers: &Reference[...]
+		html = html.replace(/&Reference\[([^\]]*)\]/g, (match) => {
+			// Parse the command to validate it
+			const parsed = parseRollCommand(match);
+			if (!parsed) {
+				// If parsing fails, return the original match
+				return match;
+			}
+
+			// Escape the command for HTML attribute (only quotes and ampersands)
+			const escapedForAttr = match
+				.replace(/&/g, "&amp;")
+				.replace(/"/g, "&quot;");
+			// Escape the command for HTML text content
+			const escapedForText = match
+				.replace(/&/g, "&amp;")
+				.replace(/</g, "&lt;")
+				.replace(/>/g, "&gt;");
+			return `<span class="roll-command" data-command="${escapedForAttr}">${escapedForText}</span>`;
+		});
+
+		// Then, handle roll command patterns: [[/check ...]], [[/skill ...]], [[/tool ...]], [[/attack ...]]
 		// This regex matches the full command including the brackets
-		const rollCommandRegex = /\[\[\/(check|skill|tool|attack)([^\]]*)\]\]/g;
+		const rollCommandRegex =
+			/\[\[\/(check|skill|tool|attack|damage|heal|item|save|concentration)([^\]]*)\]\]/g;
 
 		return html.replace(rollCommandRegex, (match) => {
 			// Parse the command to validate it

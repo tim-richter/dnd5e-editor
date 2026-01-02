@@ -26,7 +26,6 @@ Buttons to insert Foundry's inline roll syntax:
 - **Saving throws**: `@save[dexterity]`, `@save[constitution]`, etc.
 - **Attack rolls**: `@attack[strength]`, etc.
 - **Damage rolls**: `@damage[1d6]`, `@damage[2d8+3]`, etc.
-- **Spell references**: `@spell[fireball]`
 - **Item references**: `@item[longsword]`
 
 ### Preview & Copy

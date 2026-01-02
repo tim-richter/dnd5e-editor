@@ -1230,4 +1230,198 @@ describe("parseRollCommand", () => {
 			expect(result?.options).toEqual({ skill: "perception" });
 		});
 	});
+
+	describe("reference enricher commands", () => {
+		describe("inferred format", () => {
+			it("should parse simple condition reference", () => {
+				const result = parseRollCommand("&Reference[prone]");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("reference");
+				expect(result?.options).toEqual({ rule: "prone" });
+			});
+
+			it("should parse condition reference with apply=false", () => {
+				const result = parseRollCommand("&Reference[blinded apply=false]");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("reference");
+				expect(result?.options).toEqual({
+					rule: "blinded",
+					apply: false,
+				});
+			});
+
+			it("should parse ability reference", () => {
+				const result = parseRollCommand("&Reference[strength]");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("reference");
+				expect(result?.options).toEqual({ rule: "strength" });
+			});
+
+			it("should parse generic rule reference with spaces", () => {
+				const result = parseRollCommand('&Reference["Difficult Terrain"]');
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("reference");
+				expect(result?.options).toEqual({ rule: "Difficult Terrain" });
+			});
+		});
+
+		describe("explicit category format", () => {
+			it("should parse condition with explicit category", () => {
+				const result = parseRollCommand("&Reference[condition=prone]");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("reference");
+				expect(result?.options).toEqual({
+					category: "condition",
+					rule: "prone",
+				});
+			});
+
+			it("should parse condition with category and apply=false", () => {
+				const result = parseRollCommand(
+					"&Reference[condition=blinded apply=false]",
+				);
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("reference");
+				expect(result?.options).toEqual({
+					category: "condition",
+					rule: "blinded",
+					apply: false,
+				});
+			});
+
+			it("should parse ability with explicit category", () => {
+				const result = parseRollCommand("&Reference[ability=dexterity]");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("reference");
+				expect(result?.options).toEqual({
+					category: "ability",
+					rule: "dexterity",
+				});
+			});
+
+			it("should parse skill with explicit category", () => {
+				const result = parseRollCommand("&Reference[skill=acrobatics]");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("reference");
+				expect(result?.options).toEqual({
+					category: "skill",
+					rule: "acrobatics",
+				});
+			});
+
+			it("should parse damage type with explicit category", () => {
+				const result = parseRollCommand("&Reference[damageType=fire]");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("reference");
+				expect(result?.options).toEqual({
+					category: "damageType",
+					rule: "fire",
+				});
+			});
+
+			it("should parse generic rule with explicit category", () => {
+				const result = parseRollCommand(
+					'&Reference[rule="Difficult Terrain"]',
+				);
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("reference");
+				expect(result?.options).toEqual({
+					category: "rule",
+					rule: "Difficult Terrain",
+				});
+			});
+
+			it("should handle quoted rule values", () => {
+				const result = parseRollCommand('&Reference[rule="Cover Rules"]');
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("reference");
+				expect(result?.options).toEqual({
+					category: "rule",
+					rule: "Cover Rules",
+				});
+			});
+		});
+
+		describe("edge cases", () => {
+			it("should parse empty reference", () => {
+				const result = parseRollCommand("&Reference[]");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("reference");
+				expect(result?.options).toEqual({});
+			});
+
+			it("should handle apply=true (should not be included)", () => {
+				const result = parseRollCommand("&Reference[prone apply=true]");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("reference");
+				// apply=true should not be set (default behavior)
+				expect(result?.options).toEqual({ rule: "prone" });
+			});
+
+			it("should handle single quotes in rule values", () => {
+				const result = parseRollCommand("&Reference[rule='Test Rule']");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("reference");
+				expect(result?.options).toEqual({
+					category: "rule",
+					rule: "Test Rule",
+				});
+			});
+		});
+
+		describe("documentation examples", () => {
+			it("should parse documentation example: condition=prone", () => {
+				const result = parseRollCommand("&Reference[condition=prone]");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("reference");
+				expect(result?.options).toEqual({
+					category: "condition",
+					rule: "prone",
+				});
+			});
+
+			it("should parse documentation example: Prone", () => {
+				const result = parseRollCommand("&Reference[Prone]");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("reference");
+				expect(result?.options).toEqual({ rule: "Prone" });
+			});
+
+			it("should parse documentation example: prone", () => {
+				const result = parseRollCommand("&Reference[prone]");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("reference");
+				expect(result?.options).toEqual({ rule: "prone" });
+			});
+
+			it("should parse documentation example: blinded apply=false", () => {
+				const result = parseRollCommand("&Reference[blinded apply=false]");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("reference");
+				expect(result?.options).toEqual({
+					rule: "blinded",
+					apply: false,
+				});
+			});
+
+			it("should parse documentation example: rule='Difficult Terrain'", () => {
+				const result = parseRollCommand(
+					'&Reference[rule="Difficult Terrain"]',
+				);
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("reference");
+				expect(result?.options).toEqual({
+					category: "rule",
+					rule: "Difficult Terrain",
+				});
+			});
+
+			it("should parse documentation example: Difficult Terrain", () => {
+				const result = parseRollCommand('&Reference["Difficult Terrain"]');
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("reference");
+				expect(result?.options).toEqual({ rule: "Difficult Terrain" });
+			});
+		});
+	});
 });
