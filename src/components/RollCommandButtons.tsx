@@ -413,11 +413,11 @@ export default function RollCommandButtons({
 							<Label>
 								Ability (optional):
 								<Select
-									value={checkOptions.ability || ""}
+									value={checkOptions.ability || "none"}
 									onValueChange={(value) => {
 										setCheckOptions({
 											...checkOptions,
-											ability: value || undefined,
+											ability: value === "none" ? undefined : value,
 										});
 									}}
 								>
@@ -425,7 +425,7 @@ export default function RollCommandButtons({
 										<SelectValue placeholder="None" />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="">None</SelectItem>
+										<SelectItem value="none">None</SelectItem>
 										{ABILITIES.map((ability) => (
 											<SelectItem key={ability} value={ability}>
 												{ability.charAt(0).toUpperCase() + ability.slice(1)}
@@ -547,11 +547,11 @@ export default function RollCommandButtons({
 							<Label>
 								Format (optional):
 								<Select
-									value={checkOptions.format || ""}
+									value={checkOptions.format || "default"}
 									onValueChange={(value) => {
 										setCheckOptions({
 											...checkOptions,
-											format: (value || undefined) as
+											format: (value === "default" ? undefined : value) as
 												| "short"
 												| "long"
 												| undefined,
@@ -562,7 +562,7 @@ export default function RollCommandButtons({
 										<SelectValue placeholder="Default" />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="">Default</SelectItem>
+										<SelectItem value="default">Default</SelectItem>
 										<SelectItem value="short">Short</SelectItem>
 										<SelectItem value="long">Long</SelectItem>
 									</SelectContent>
@@ -610,11 +610,11 @@ export default function RollCommandButtons({
 							<Label>
 								Rules Version (optional, only affects skill+tool combinations):
 								<Select
-									value={checkOptions.rules || ""}
+									value={checkOptions.rules || "default"}
 									onValueChange={(value) => {
 										setCheckOptions({
 											...checkOptions,
-											rules: (value || undefined) as
+											rules: (value === "default" ? undefined : value) as
 												| "2014"
 												| "2024"
 												| undefined,
@@ -625,7 +625,7 @@ export default function RollCommandButtons({
 										<SelectValue placeholder="Default" />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="">Default</SelectItem>
+										<SelectItem value="default">Default</SelectItem>
 										<SelectItem value="2014">2014 (Legacy)</SelectItem>
 										<SelectItem value="2024">2024</SelectItem>
 									</SelectContent>
@@ -712,11 +712,11 @@ export default function RollCommandButtons({
 							<Label>
 								Attack Mode (optional):
 								<Select
-									value={attackOptions.attackMode || ""}
+									value={attackOptions.attackMode || "none"}
 									onValueChange={(value) => {
 										setAttackOptions({
 											...attackOptions,
-											attackMode: value || undefined,
+											attackMode: value === "none" ? undefined : value,
 										});
 									}}
 								>
@@ -724,7 +724,7 @@ export default function RollCommandButtons({
 										<SelectValue placeholder="None" />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="">None</SelectItem>
+										<SelectItem value="none">None</SelectItem>
 										<SelectItem value="melee">Melee</SelectItem>
 										<SelectItem value="ranged">Ranged</SelectItem>
 										<SelectItem value="thrown">Thrown</SelectItem>
@@ -737,11 +737,11 @@ export default function RollCommandButtons({
 							<Label>
 								Format (optional):
 								<Select
-									value={attackOptions.format || ""}
+									value={attackOptions.format || "default"}
 									onValueChange={(value) => {
 										setAttackOptions({
 											...attackOptions,
-											format: (value || undefined) as
+											format: (value === "default" ? undefined : value) as
 												| "short"
 												| "long"
 												| "extended"
@@ -753,7 +753,7 @@ export default function RollCommandButtons({
 										<SelectValue placeholder="Default" />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="">Default</SelectItem>
+										<SelectItem value="default">Default</SelectItem>
 										<SelectItem value="short">Short</SelectItem>
 										<SelectItem value="long">Long</SelectItem>
 										<SelectItem value="extended">Extended</SelectItem>
@@ -766,11 +766,11 @@ export default function RollCommandButtons({
 							<Label>
 								Rules Version (optional, only affects extended format):
 								<Select
-									value={attackOptions.rules || ""}
+									value={attackOptions.rules || "default"}
 									onValueChange={(value) => {
 										setAttackOptions({
 											...attackOptions,
-											rules: (value || undefined) as
+											rules: (value === "default" ? undefined : value) as
 												| "2014"
 												| "2024"
 												| undefined,
@@ -781,7 +781,7 @@ export default function RollCommandButtons({
 										<SelectValue placeholder="Default" />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="">Default</SelectItem>
+										<SelectItem value="default">Default</SelectItem>
 										<SelectItem value="2014">2014 (Legacy)</SelectItem>
 										<SelectItem value="2024">2024</SelectItem>
 									</SelectContent>

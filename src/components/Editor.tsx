@@ -1,6 +1,4 @@
-import Link from "@tiptap/extension-link";
 import TextAlign from "@tiptap/extension-text-align";
-import Underline from "@tiptap/extension-underline";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect } from "react";
@@ -30,13 +28,6 @@ export default function Editor({ onUpdate }: EditorProps) {
 			TextAlign.configure({
 				types: ["heading", "paragraph"],
 			}),
-			Link.configure({
-				openOnClick: false,
-				HTMLAttributes: {
-					class: "link",
-				},
-			}),
-			Underline,
 			Aside,
 			Image,
 			Figure,
