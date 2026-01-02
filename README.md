@@ -55,6 +55,18 @@ The editor will be available at `http://localhost:5173`
 pnpm build
 ```
 
+### GitHub Pages Deployment
+
+The project is configured for automatic deployment to GitHub Pages:
+
+1. Push your code to the `main` branch
+2. GitHub Actions will automatically build and deploy the site
+3. The site will be available at `https://<username>.github.io/dnd5e-editor/`
+
+**Note:** If your repository name is different, update the `base` path in `vite.config.ts` to match your repository name.
+
+To manually trigger a deployment, go to the Actions tab in GitHub and run the "Deploy to GitHub Pages" workflow.
+
 ## Usage
 
 1. Edit your content in the left pane using the toolbar buttons
