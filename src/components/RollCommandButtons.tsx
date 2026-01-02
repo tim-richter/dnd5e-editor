@@ -3,6 +3,10 @@ import { ChevronDown } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { ABILITIES } from "@/features/dnd/abilities/abilities";
 import {
+	createItemEnricher,
+	type ItemEnricherOptions,
+} from "@/features/dnd/rolls/item/itemEnricher";
+import {
 	type AttackEnricherOptions,
 	createAttackRoll,
 } from "@/features/dnd/rolls/attack/attackRoll";
@@ -21,11 +25,7 @@ import {
 	type HealEnricherOptions,
 } from "@/features/dnd/rolls/heal/healRoll";
 import { SKILLS } from "@/features/dnd/skills/skills";
-import {
-	createItemReference,
-	createSavingThrow,
-	createSpellReference,
-} from "@/utils/rollCommands";
+import { createSavingThrow, createSpellReference } from "@/utils/rollCommands";
 import { parseRollCommand } from "../features/dnd/rolls/parser";
 import { Button } from "./ui/button";
 import {
@@ -63,6 +63,7 @@ export default function RollCommandButtons({
 	const [showCheckDialog, setShowCheckDialog] = useState(false);
 	const [showDamageDialog, setShowDamageDialog] = useState(false);
 	const [showHealDialog, setShowHealDialog] = useState(false);
+	const [showItemDialog, setShowItemDialog] = useState(false);
 	const [checkDialogType, setCheckDialogType] = useState<
 		"check" | "skill" | "tool"
 	>("check");
@@ -70,6 +71,10 @@ export default function RollCommandButtons({
 	const [checkOptions, setCheckOptions] = useState<CheckEnricherOptions>({});
 	const [damageOptions, setDamageOptions] = useState<DamageEnricherOptions>({});
 	const [healOptions, setHealOptions] = useState<HealEnricherOptions>({});
+	const [itemOptions, setItemOptions] = useState<ItemEnricherOptions>({});
+	const [itemMethod, setItemMethod] = useState<"name" | "uuid" | "relativeId">(
+		"name",
+	);
 	const [editingPosition, setEditingPosition] = useState<number | null>(null);
 	const [isEditing, setIsEditing] = useState(false);
 	const passiveCheckId = useId();
@@ -106,6 +111,19 @@ export default function RollCommandButtons({
 				// Open heal dialog with parsed options
 				setHealOptions(parsed.options as HealEnricherOptions);
 				setShowHealDialog(true);
+			} else if (parsed.type === "item") {
+				// Open item dialog with parsed options
+				const itemOpts = parsed.options as ItemEnricherOptions;
+				setItemOptions(itemOpts);
+				// Determine which method was used
+				if (itemOpts.uuid) {
+					setItemMethod("uuid");
+				} else if (itemOpts.relativeId) {
+					setItemMethod("relativeId");
+				} else {
+					setItemMethod("name");
+				}
+				setShowItemDialog(true);
 			} else {
 				// Open check dialog with parsed options
 				setCheckDialogType(parsed.type);
@@ -263,10 +281,71 @@ export default function RollCommandButtons({
 	};
 
 	const handleItemReference = () => {
-		const itemName = window.prompt("Enter item name:");
-		if (itemName) {
-			insertRollCommand(createItemReference(itemName));
+		setShowItemDialog(true);
+		setItemOptions({});
+		setItemMethod("name");
+		setIsEditing(false);
+		setEditingPosition(null);
+	};
+
+	const handleItemDialogSubmit = () => {
+		const newCommand = createItemEnricher(itemOptions);
+
+		if (isEditing && editingPosition !== null) {
+			// Update existing command
+			const { state } = editor.view;
+			const { tr } = state;
+			const $pos = state.doc.resolve(editingPosition);
+
+			// Find the rollCommand node at this position
+			let nodePos = editingPosition;
+			let nodeSize = 0;
+
+			// Check if we're at the start of a rollCommand node
+			const node = $pos.nodeAfter;
+			if (node && node.type.name === "rollCommand") {
+				nodeSize = node.nodeSize;
+			} else {
+				// Try to find the node by checking parent nodes
+				for (let i = $pos.depth; i > 0; i--) {
+					const parent = $pos.node(i);
+					if (parent.type.name === "rollCommand") {
+						nodePos = $pos.start(i);
+						nodeSize = parent.nodeSize;
+						break;
+					}
+				}
+			}
+
+			if (nodeSize > 0) {
+				// Replace the node
+				tr.replaceWith(
+					nodePos,
+					nodePos + nodeSize,
+					// @ts-expect-error - createRollCommand is added by the RollCommand extension
+					editor.schema.nodes.rollCommand.create({ command: newCommand }),
+				);
+				editor.view.dispatch(tr);
+			}
+		} else {
+			// Insert new command
+			insertRollCommand(newCommand);
 		}
+
+		// Close dialog and reset state
+		setShowItemDialog(false);
+		setItemOptions({});
+		setItemMethod("name");
+		setIsEditing(false);
+		setEditingPosition(null);
+	};
+
+	const handleItemDialogCancel = () => {
+		setShowItemDialog(false);
+		setItemOptions({});
+		setItemMethod("name");
+		setIsEditing(false);
+		setEditingPosition(null);
 	};
 
 	const handleAttackRoll = () => {
@@ -1287,6 +1366,160 @@ export default function RollCommandButtons({
 							Cancel
 						</Button>
 						<Button onClick={handleHealDialogSubmit}>
+							{isEditing ? "Update" : "Insert"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Item Enricher Dialog */}
+			<Dialog
+				open={showItemDialog}
+				onOpenChange={(open) => !open && handleItemDialogCancel()}
+			>
+				<DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>
+							{isEditing ? "Edit" : "Insert"} Item Enricher
+						</DialogTitle>
+					</DialogHeader>
+					<div className="flex flex-col gap-4">
+						<div className="flex flex-col gap-2">
+							<Label>
+								Reference Method:
+								<Select
+									value={itemMethod}
+									onValueChange={(value) => {
+										setItemMethod(value as "name" | "uuid" | "relativeId");
+										// Clear options when switching methods
+										setItemOptions({});
+									}}
+								>
+									<SelectTrigger>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="name">By Item Name</SelectItem>
+										<SelectItem value="uuid">By UUID</SelectItem>
+										<SelectItem value="relativeId">By Relative ID</SelectItem>
+									</SelectContent>
+								</Select>
+							</Label>
+						</div>
+
+						{itemMethod === "name" && (
+							<div className="flex flex-col gap-2">
+								<Label>
+									Item Name:
+									<Input
+										type="text"
+										placeholder="Bite"
+										value={itemOptions.itemName || ""}
+										onChange={(e) => {
+											const value = e.target.value.trim();
+											setItemOptions({
+												...itemOptions,
+												itemName: value || undefined,
+												uuid: undefined,
+												relativeId: undefined,
+											});
+										}}
+									/>
+								</Label>
+								<p className="text-xs text-muted-foreground">
+									Functions similarly to a system macro. When clicked, it will
+									check for a selected token or your assigned actor.
+								</p>
+							</div>
+						)}
+
+						{itemMethod === "uuid" && (
+							<div className="flex flex-col gap-2">
+								<Label>
+									UUID (Actor.Item format):
+									<Input
+										type="text"
+										placeholder="Actor.p26xCjCCTQm5fRN3.Item.amUUCouL69OK1GZU"
+										value={itemOptions.uuid || ""}
+										onChange={(e) => {
+											const value = e.target.value.trim();
+											setItemOptions({
+												...itemOptions,
+												uuid: value || undefined,
+												itemName: undefined,
+												relativeId: undefined,
+											});
+										}}
+									/>
+								</Label>
+								<p className="text-xs text-muted-foreground">
+									A UUID contains references to an Actor and an Item it owns.
+								</p>
+							</div>
+						)}
+
+						{itemMethod === "relativeId" && (
+							<div className="flex flex-col gap-2">
+								<Label>
+									Relative ID (item ID or relative UUID starting with .):
+									<Input
+										type="text"
+										placeholder="amUUCouL69OK1GZU or .amUUCouL69OK1GZU"
+										value={itemOptions.relativeId || ""}
+										onChange={(e) => {
+											const value = e.target.value.trim();
+											setItemOptions({
+												...itemOptions,
+												relativeId: value || undefined,
+												itemName: undefined,
+												uuid: undefined,
+											});
+										}}
+									/>
+								</Label>
+								<p className="text-xs text-muted-foreground">
+									Uses the location (Actor Sheet, Item Sheet, or Chat Card) to
+									determine the Token or Actor that owns the item.
+								</p>
+							</div>
+						)}
+
+						<div className="flex flex-col gap-2">
+							<Label>
+								Activity Name (optional):
+								<Input
+									type="text"
+									placeholder="Poison"
+									value={itemOptions.activity || ""}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+										setItemOptions({
+											...itemOptions,
+											activity: value || undefined,
+										});
+									}}
+								/>
+							</Label>
+							<p className="text-xs text-muted-foreground">
+								To trigger a specific activity on the item. Will be automatically
+								quoted if it contains spaces.
+							</p>
+						</div>
+
+						<div className="mt-2 p-3 bg-muted rounded-md border border-border">
+							<strong className="block mb-2 text-sm text-muted-foreground">
+								Preview:
+							</strong>
+							<code className="block font-mono text-xs text-foreground break-all">
+								{createItemEnricher(itemOptions)}
+							</code>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button variant="outline" onClick={handleItemDialogCancel}>
+							Cancel
+						</Button>
+						<Button onClick={handleItemDialogSubmit}>
 							{isEditing ? "Update" : "Insert"}
 						</Button>
 					</DialogFooter>

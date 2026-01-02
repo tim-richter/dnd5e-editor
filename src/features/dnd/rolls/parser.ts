@@ -6,6 +6,7 @@ import type { AttackEnricherOptions } from "@/features/dnd/rolls/attack/attackRo
 import type { CheckEnricherOptions } from "@/features/dnd/rolls/check/checkRoll";
 import type { DamageEnricherOptions } from "@/features/dnd/rolls/damage/damageRoll";
 import type { HealEnricherOptions } from "@/features/dnd/rolls/heal/healRoll";
+import type { ItemEnricherOptions } from "@/features/dnd/rolls/item/itemEnricher";
 import { isSkill, normalizeSkill } from "@/features/dnd/skills/skills";
 
 /**
@@ -19,19 +20,23 @@ import { isSkill, normalizeSkill } from "@/features/dnd/skills/skills";
  * - [[/attack formula=5 attackMode=thrown]]
  * - [[/damage 2d6 fire]]
  * - [[/damage 2d6 fire average]]
+ * - [[/item Bite]]
+ * - [[/item Bite activity=Poison]]
+ * - [[/item Actor.p26xCjCCTQm5fRN3.Item.amUUCouL69OK1GZU]]
  */
 export function parseRollCommand(command: string): {
-	type: "check" | "skill" | "tool" | "attack" | "damage" | "heal";
+	type: "check" | "skill" | "tool" | "attack" | "damage" | "heal" | "item";
 	options:
 		| CheckEnricherOptions
 		| AttackEnricherOptions
 		| DamageEnricherOptions
-		| HealEnricherOptions;
+		| HealEnricherOptions
+		| ItemEnricherOptions;
 	originalCommand: string;
 } | null {
 	// Match roll command pattern: [[/type ...]]
 	const match = command.match(
-		/\[\[\/(check|skill|tool|attack|damage|heal)([^\]]*)\]\]/,
+		/\[\[\/(check|skill|tool|attack|damage|heal|item)([^\]]*)\]\]/,
 	);
 	if (!match) {
 		return null;
@@ -43,7 +48,8 @@ export function parseRollCommand(command: string): {
 		| "tool"
 		| "attack"
 		| "damage"
-		| "heal";
+		| "heal"
+		| "item";
 	const body = match[2].trim();
 
 	if (type === "attack") {
@@ -62,6 +68,12 @@ export function parseRollCommand(command: string): {
 		return {
 			type: "heal",
 			options: parseHealCommand(body),
+			originalCommand: command,
+		};
+	} else if (type === "item") {
+		return {
+			type: "item",
+			options: parseItemCommand(body),
 			originalCommand: command,
 		};
 	} else {
@@ -584,6 +596,90 @@ function parseHealCommand(body: string): HealEnricherOptions {
 			} else {
 				// Skip parts with "=" that aren't recognized
 				i++;
+			}
+		}
+	}
+
+	return options;
+}
+
+/**
+ * Parses an item command body
+ */
+function parseItemCommand(body: string): ItemEnricherOptions {
+	const options: ItemEnricherOptions = {};
+
+	if (!body) {
+		return options;
+	}
+
+	// Check for explicit key=value format (activity=)
+	const hasExplicitFormat = body.includes("=");
+
+	if (hasExplicitFormat) {
+		// Parse explicit format: Bite activity=Poison or Actor.Item.UUID activity=Poison
+		const parts = body.split(/\s+/);
+		let mainPart = "";
+		let activityFound = false;
+
+		for (const part of parts) {
+			if (part.startsWith("activity=")) {
+				activityFound = true;
+				// Extract activity value, handling quotes
+				let activityValue = part.substring(9); // Remove "activity="
+				// Remove quotes if present
+				if (
+					(activityValue.startsWith('"') && activityValue.endsWith('"')) ||
+					(activityValue.startsWith("'") && activityValue.endsWith("'"))
+				) {
+					activityValue = activityValue.slice(1, -1);
+				}
+				options.activity = activityValue;
+			} else if (!activityFound) {
+				// Collect all parts before activity= as the main identifier
+				mainPart = mainPart ? `${mainPart} ${part}` : part;
+			}
+		}
+
+		// Determine what type of identifier the main part is
+		if (mainPart) {
+			// Check if it's a UUID (contains Actor. and Item.)
+			if (mainPart.includes("Actor.") && mainPart.includes("Item.")) {
+				options.uuid = mainPart;
+			} else if (mainPart.startsWith(".")) {
+				// Relative UUID (starts with .)
+				options.relativeId = mainPart;
+			} else {
+				// Could be item name or relative ID
+				// If it looks like an ID (alphanumeric, no spaces typically), treat as relativeId
+				// Otherwise treat as item name
+				if (/^[a-zA-Z0-9._-]+$/.test(mainPart) && !mainPart.includes(" ")) {
+					// Likely an ID (no spaces, alphanumeric)
+					options.relativeId = mainPart;
+				} else {
+					// Likely an item name (may contain spaces)
+					options.itemName = mainPart;
+				}
+			}
+		}
+	} else {
+		// No explicit format, just the identifier
+		// Check if it's a UUID (contains Actor. and Item.)
+		if (body.includes("Actor.") && body.includes("Item.")) {
+			options.uuid = body;
+		} else if (body.startsWith(".")) {
+			// Relative UUID (starts with .)
+			options.relativeId = body;
+		} else {
+			// Could be item name or relative ID
+			// If it looks like an ID (alphanumeric, no spaces typically), treat as relativeId
+			// Otherwise treat as item name
+			if (/^[a-zA-Z0-9._-]+$/.test(body) && !body.includes(" ")) {
+				// Likely an ID (no spaces, alphanumeric)
+				options.relativeId = body;
+			} else {
+				// Likely an item name (may contain spaces)
+				options.itemName = body;
 			}
 		}
 	}

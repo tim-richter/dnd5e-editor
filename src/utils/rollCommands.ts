@@ -7,7 +7,3 @@ export const createSavingThrow = (ability: Ability): string => {
 export const createSpellReference = (spellName: string): string => {
 	return `@spell[${spellName}]`;
 };
-
-export const createItemReference = (itemName: string): string => {
-	return `@item[${itemName}]`;
-};
