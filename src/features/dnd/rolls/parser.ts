@@ -7,6 +7,7 @@ import type { CheckEnricherOptions } from "@/features/dnd/rolls/check/checkRoll"
 import type { DamageEnricherOptions } from "@/features/dnd/rolls/damage/damageRoll";
 import type { HealEnricherOptions } from "@/features/dnd/rolls/heal/healRoll";
 import type { ItemEnricherOptions } from "@/features/dnd/rolls/item/itemEnricher";
+import type { SaveEnricherOptions } from "@/features/dnd/rolls/save/saveRoll";
 import { isSkill, normalizeSkill } from "@/features/dnd/skills/skills";
 
 /**
@@ -16,6 +17,9 @@ import { isSkill, normalizeSkill } from "@/features/dnd/skills/skills";
  * - [[/check dex 15]]
  * - [[/check ability=dexterity dc=20]]
  * - [[/skill perception]]
+ * - [[/save dex]] or [[/save ability=dexterity]]
+ * - [[/save dexterity 20]] or [[/save ability=dexterity dc=20]]
+ * - [[/concentration dc=15]]
  * - [[/attack +5]]
  * - [[/attack formula=5 attackMode=thrown]]
  * - [[/damage 2d6 fire]]
@@ -25,18 +29,28 @@ import { isSkill, normalizeSkill } from "@/features/dnd/skills/skills";
  * - [[/item Actor.p26xCjCCTQm5fRN3.Item.amUUCouL69OK1GZU]]
  */
 export function parseRollCommand(command: string): {
-	type: "check" | "skill" | "tool" | "attack" | "damage" | "heal" | "item";
+	type:
+		| "check"
+		| "skill"
+		| "tool"
+		| "attack"
+		| "damage"
+		| "heal"
+		| "item"
+		| "save"
+		| "concentration";
 	options:
 		| CheckEnricherOptions
 		| AttackEnricherOptions
 		| DamageEnricherOptions
 		| HealEnricherOptions
-		| ItemEnricherOptions;
+		| ItemEnricherOptions
+		| SaveEnricherOptions;
 	originalCommand: string;
 } | null {
 	// Match roll command pattern: [[/type ...]]
 	const match = command.match(
-		/\[\[\/(check|skill|tool|attack|damage|heal|item)([^\]]*)\]\]/,
+		/\[\[\/(check|skill|tool|attack|damage|heal|item|save|concentration)([^\]]*)\]\]/,
 	);
 	if (!match) {
 		return null;
@@ -49,7 +63,9 @@ export function parseRollCommand(command: string): {
 		| "attack"
 		| "damage"
 		| "heal"
-		| "item";
+		| "item"
+		| "save"
+		| "concentration";
 	const body = match[2].trim();
 
 	if (type === "attack") {
@@ -74,6 +90,12 @@ export function parseRollCommand(command: string): {
 		return {
 			type: "item",
 			options: parseItemCommand(body),
+			originalCommand: command,
+		};
+	} else if (type === "save" || type === "concentration") {
+		return {
+			type,
+			options: parseSaveCommand(body),
 			originalCommand: command,
 		};
 	} else {
@@ -681,6 +703,101 @@ function parseItemCommand(body: string): ItemEnricherOptions {
 				// Likely an item name (may contain spaces)
 				options.itemName = body;
 			}
+		}
+	}
+
+	return options;
+}
+
+/**
+ * Parses a save/concentration command body
+ */
+function parseSaveCommand(body: string): SaveEnricherOptions {
+	const options: SaveEnricherOptions = {};
+
+	if (!body) {
+		return options;
+	}
+
+	// Check for explicit key=value format
+	const hasExplicitFormat = body.includes("=");
+
+	if (hasExplicitFormat) {
+		// Parse explicit format: ability=dexterity dc=15 format=long
+		const parts = body.split(/\s+/);
+		for (const part of parts) {
+			const [key, ...valueParts] = part.split("=");
+			const value = valueParts.join("="); // Handle values that might contain '='
+
+			switch (key) {
+				case "ability":
+					// Handle slash-separated abilities: ability=str/dex
+					if (value.includes("/")) {
+						options.ability = value.split("/").map(normalizeAbility);
+					} else {
+						options.ability = normalizeAbility(value);
+					}
+					break;
+				case "dc": {
+					// Try to parse as number, otherwise keep as string (formula)
+					const numValue = parseInt(value);
+					options.dc = Number.isNaN(numValue) ? value : numValue;
+					break;
+				}
+				case "format":
+					if (value === "short" || value === "long") {
+						options.format = value;
+					}
+					break;
+				case "activity":
+					options.activity = value;
+					break;
+			}
+		}
+	} else {
+		// Parse shorthand format: dex 15, dexterity, strength dexterity 20, etc.
+		const parts = body.split(/\s+/).filter((p) => p.length > 0);
+
+		if (parts.length === 0) {
+			return options;
+		}
+
+		// Try to identify what each part is
+		const identified: {
+			abilities: string[];
+			dc?: string | number;
+		} = { abilities: [] };
+
+		for (const part of parts) {
+			const lower = part.toLowerCase();
+
+			// Check if it's an ability
+			if (isAbility(lower)) {
+				identified.abilities.push(normalizeAbility(lower));
+				continue;
+			}
+
+			// Check if it's a number (DC)
+			const numValue = parseInt(part);
+			if (!Number.isNaN(numValue)) {
+				identified.dc = numValue;
+				continue;
+			}
+
+			// If we can't identify it, assume it's an ability (for custom abilities)
+			identified.abilities.push(part);
+		}
+
+		// Map identified parts to options
+		if (identified.abilities.length > 0) {
+			options.ability =
+				identified.abilities.length === 1
+					? identified.abilities[0]
+					: identified.abilities;
+		}
+
+		if (identified.dc !== undefined) {
+			options.dc = identified.dc;
 		}
 	}
 

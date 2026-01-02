@@ -11,7 +11,6 @@ describe("parseRollCommand", () => {
 		});
 
 		it("should return null for unsupported command types", () => {
-			expect(parseRollCommand("[[/save dexterity]]")).toBeNull();
 			expect(parseRollCommand("[[/spell fireball]]")).toBeNull();
 		});
 	});
@@ -1003,6 +1002,189 @@ describe("parseRollCommand", () => {
 				const result = parseRollCommand("[[/item item.id.123]]");
 				expect(result).not.toBeNull();
 				expect(result?.options).toEqual({ relativeId: "item.id.123" });
+			});
+		});
+	});
+
+	describe("save commands", () => {
+		describe("explicit format", () => {
+			it("should parse ability with explicit format", () => {
+				const result = parseRollCommand("[[/save ability=dexterity]]");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("save");
+				expect(result?.options).toEqual({ ability: "dexterity" });
+			});
+
+			it("should parse multiple abilities with explicit format", () => {
+				const result = parseRollCommand("[[/save ability=str/dex]]");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("save");
+				expect(result?.options).toEqual({
+					ability: ["strength", "dexterity"],
+				});
+			});
+
+			it("should parse DC as number with explicit format", () => {
+				const result = parseRollCommand("[[/save ability=dexterity dc=15]]");
+				expect(result).not.toBeNull();
+				expect(result?.options).toEqual({
+					ability: "dexterity",
+					dc: 15,
+				});
+			});
+
+			it("should parse DC as string formula with explicit format", () => {
+				const result = parseRollCommand(
+					"[[/save ability=dexterity dc=@abilities.con.dc]]",
+				);
+				expect(result).not.toBeNull();
+				expect(result?.options).toEqual({
+					ability: "dexterity",
+					dc: "@abilities.con.dc",
+				});
+			});
+
+			it("should parse format with explicit format", () => {
+				const result = parseRollCommand(
+					"[[/save ability=dexterity format=long]]",
+				);
+				expect(result).not.toBeNull();
+				expect(result?.options).toEqual({
+					ability: "dexterity",
+					format: "long",
+				});
+			});
+
+			it("should parse activity with explicit format", () => {
+				const result = parseRollCommand(
+					"[[/save activity=RLQlsLo5InKHZadn]]",
+				);
+				expect(result).not.toBeNull();
+				expect(result?.options).toEqual({
+					activity: "RLQlsLo5InKHZadn",
+				});
+			});
+
+			it("should parse all save options with explicit format", () => {
+				const result = parseRollCommand(
+					"[[/save ability=dexterity dc=15 format=long activity=RLQlsLo5InKHZadn]]",
+				);
+				expect(result).not.toBeNull();
+				expect(result?.options).toEqual({
+					ability: "dexterity",
+					dc: 15,
+					format: "long",
+					activity: "RLQlsLo5InKHZadn",
+				});
+			});
+		});
+
+		describe("shorthand format", () => {
+			it("should parse ability shorthand", () => {
+				const result = parseRollCommand("[[/save dex]]");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("save");
+				expect(result?.options).toEqual({ ability: "dexterity" });
+			});
+
+			it("should parse full ability name shorthand", () => {
+				const result = parseRollCommand("[[/save dexterity]]");
+				expect(result).not.toBeNull();
+				expect(result?.options).toEqual({ ability: "dexterity" });
+			});
+
+			it("should parse ability and DC shorthand", () => {
+				const result = parseRollCommand("[[/save dex 15]]");
+				expect(result).not.toBeNull();
+				expect(result?.options).toEqual({
+					ability: "dexterity",
+					dc: 15,
+				});
+			});
+
+			it("should parse full ability name and DC shorthand", () => {
+				const result = parseRollCommand("[[/save dexterity 20]]");
+				expect(result).not.toBeNull();
+				expect(result?.options).toEqual({
+					ability: "dexterity",
+					dc: 20,
+				});
+			});
+
+			it("should parse multiple abilities shorthand", () => {
+				const result = parseRollCommand("[[/save strength dexterity]]");
+				expect(result).not.toBeNull();
+				expect(result?.options).toEqual({
+					ability: ["strength", "dexterity"],
+				});
+			});
+
+			it("should parse multiple abilities and DC shorthand", () => {
+				const result = parseRollCommand("[[/save strength dexterity 20]]");
+				expect(result).not.toBeNull();
+				expect(result?.options).toEqual({
+					ability: ["strength", "dexterity"],
+					dc: 20,
+				});
+			});
+		});
+
+		describe("empty commands", () => {
+			it("should parse empty save command", () => {
+				const result = parseRollCommand("[[/save]]");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("save");
+				expect(result?.options).toEqual({});
+			});
+		});
+	});
+
+	describe("concentration commands", () => {
+		describe("explicit format", () => {
+			it("should parse concentration with DC", () => {
+				const result = parseRollCommand("[[/concentration dc=15]]");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("concentration");
+				expect(result?.options).toEqual({ dc: 15 });
+			});
+
+			it("should parse concentration with ability override", () => {
+				const result = parseRollCommand("[[/concentration ability=cha]]");
+				expect(result).not.toBeNull();
+				expect(result?.options).toEqual({ ability: "charisma" });
+			});
+
+			it("should parse concentration with ability and DC", () => {
+				const result = parseRollCommand(
+					"[[/concentration ability=charisma dc=15]]",
+				);
+				expect(result).not.toBeNull();
+				expect(result?.options).toEqual({
+					ability: "charisma",
+					dc: 15,
+				});
+			});
+		});
+
+		describe("shorthand format", () => {
+			it("should parse concentration with DC shorthand", () => {
+				const result = parseRollCommand("[[/concentration 15]]");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("concentration");
+				expect(result?.options).toEqual({ dc: 15 });
+			});
+
+			it("should parse empty concentration command", () => {
+				const result = parseRollCommand("[[/concentration]]");
+				expect(result).not.toBeNull();
+				expect(result?.type).toBe("concentration");
+				expect(result?.options).toEqual({});
+			});
+
+			it("should parse concentration with ability shorthand", () => {
+				const result = parseRollCommand("[[/concentration charisma]]");
+				expect(result).not.toBeNull();
+				expect(result?.options).toEqual({ ability: "charisma" });
 			});
 		});
 	});

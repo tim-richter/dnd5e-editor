@@ -3,10 +3,6 @@ import { ChevronDown } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { ABILITIES } from "@/features/dnd/abilities/abilities";
 import {
-	createItemEnricher,
-	type ItemEnricherOptions,
-} from "@/features/dnd/rolls/item/itemEnricher";
-import {
 	type AttackEnricherOptions,
 	createAttackRoll,
 } from "@/features/dnd/rolls/attack/attackRoll";
@@ -24,6 +20,10 @@ import {
 	createHealRoll,
 	type HealEnricherOptions,
 } from "@/features/dnd/rolls/heal/healRoll";
+import {
+	createItemEnricher,
+	type ItemEnricherOptions,
+} from "@/features/dnd/rolls/item/itemEnricher";
 import { SKILLS } from "@/features/dnd/skills/skills";
 import { createSavingThrow, createSpellReference } from "@/utils/rollCommands";
 import { parseRollCommand } from "../features/dnd/rolls/parser";
@@ -124,7 +124,11 @@ export default function RollCommandButtons({
 					setItemMethod("name");
 				}
 				setShowItemDialog(true);
-			} else {
+			} else if (
+				parsed.type === "check" ||
+				parsed.type === "skill" ||
+				parsed.type === "tool"
+			) {
 				// Open check dialog with parsed options
 				setCheckDialogType(parsed.type);
 				setCheckOptions(parsed.options as CheckEnricherOptions);
@@ -322,7 +326,6 @@ export default function RollCommandButtons({
 				tr.replaceWith(
 					nodePos,
 					nodePos + nodeSize,
-					// @ts-expect-error - createRollCommand is added by the RollCommand extension
 					editor.schema.nodes.rollCommand.create({ command: newCommand }),
 				);
 				editor.view.dispatch(tr);
@@ -1501,8 +1504,8 @@ export default function RollCommandButtons({
 								/>
 							</Label>
 							<p className="text-xs text-muted-foreground">
-								To trigger a specific activity on the item. Will be automatically
-								quoted if it contains spaces.
+								To trigger a specific activity on the item. Will be
+								automatically quoted if it contains spaces.
 							</p>
 						</div>
 
