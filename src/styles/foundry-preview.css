@@ -42,6 +42,21 @@
   font-size: 1.25em;
 }
 
+.foundry-preview h4 {
+  font-size: 1.15em;
+  color: #58180d;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.foundry-preview h5 {
+  font-size: 1.1em;
+  color: #7a2d1f;
+  font-weight: 600;
+  font-style: italic;
+}
+
 .foundry-preview ul,
 .foundry-preview ol {
   margin: 0.75rem 0;

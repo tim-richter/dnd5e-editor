@@ -9,6 +9,8 @@ import {
 	Heading1,
 	Heading2,
 	Heading3,
+	Heading4,
+	Heading5,
 	Italic,
 	Link,
 	List,
@@ -199,6 +201,30 @@ export default function Toolbar({ editor, htmlContent = "" }: ToolbarProps) {
 							title="Heading 3"
 						>
 							<Heading3 className="size-4" />
+						</Button>
+						<Button
+							variant={
+								editor.isActive("heading", { level: 4 }) ? "default" : "ghost"
+							}
+							size="sm"
+							onClick={() =>
+								editor.chain().focus().toggleHeading({ level: 4 }).run()
+							}
+							title="Heading 4"
+						>
+							<Heading4 className="size-4" />
+						</Button>
+						<Button
+							variant={
+								editor.isActive("heading", { level: 5 }) ? "default" : "ghost"
+							}
+							size="sm"
+							onClick={() =>
+								editor.chain().focus().toggleHeading({ level: 5 }).run()
+							}
+							title="Heading 5"
+						>
+							<Heading5 className="size-4" />
 						</Button>
 					</div>
 

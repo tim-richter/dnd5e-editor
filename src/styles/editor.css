@@ -35,6 +35,19 @@
   font-size: 1.17em;
 }
 
+.ProseMirror h4 {
+  font-size: 1.1em;
+  font-weight: 600;
+  color: #555;
+}
+
+.ProseMirror h5 {
+  font-size: 1.05em;
+  font-weight: 600;
+  color: #666;
+  font-style: italic;
+}
+
 .ProseMirror ul,
 .ProseMirror ol {
   margin: 0.5rem 0;
