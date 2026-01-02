@@ -1,54 +1,12 @@
-import TextAlign from "@tiptap/extension-text-align";
-import { EditorContent, useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
+import { EditorContent } from "@tiptap/react";
+import type { Editor } from "@tiptap/react";
 import { useEffect } from "react";
-import {
-	Article,
-	Aside,
-	Figure,
-	FVTTAdvice,
-	FVTTNarrative,
-	Image,
-	RollCommand,
-} from "../extensions/foundryExtensions";
-import Toolbar from "./Toolbar";
 
 interface EditorProps {
-	onUpdate: (html: string) => void;
+	editor: Editor;
 }
 
-export default function Editor({ onUpdate }: EditorProps) {
-	const editor = useEditor({
-		extensions: [
-			StarterKit.configure({
-				heading: {
-					levels: [1, 2, 3, 4, 5, 6],
-				},
-			}),
-			TextAlign.configure({
-				types: ["heading", "paragraph"],
-			}),
-			Aside,
-			Image,
-			Figure,
-			Article,
-			FVTTAdvice,
-			FVTTNarrative,
-			RollCommand,
-		],
-		content: "<p>Start editing your Foundry VTT journal entry...</p>",
-		onUpdate: ({ editor }) => {
-			const html = editor.getHTML();
-			onUpdate(html);
-		},
-	});
-
-	useEffect(() => {
-		if (editor) {
-			const html = editor.getHTML();
-			onUpdate(html);
-		}
-	}, [editor, onUpdate]);
+export default function Editor({ editor }: EditorProps) {
 
 	// Add click handler for roll commands
 	useEffect(() => {
@@ -126,7 +84,6 @@ export default function Editor({ onUpdate }: EditorProps) {
 
 	return (
 		<div className="flex flex-col h-full overflow-hidden">
-			<Toolbar editor={editor} />
 			<div className="flex-1 overflow-y-auto bg-background">
 				<EditorContent editor={editor} />
 			</div>

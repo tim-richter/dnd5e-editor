@@ -1,6 +1,6 @@
 import type { Editor } from "@tiptap/react";
 import { useState } from "react";
-import { Download, Heading1, Heading2, Heading3, Bold, Italic, Underline, List, ListOrdered, Link, AlignLeft, AlignCenter, AlignRight, Undo, Redo } from "lucide-react";
+import { Download, Heading1, Heading2, Heading3, Bold, Italic, Underline, List, ListOrdered, Link, AlignLeft, AlignCenter, AlignRight, Undo, Redo, Copy } from "lucide-react";
 import { parseRollCommand } from "../utils/rollCommandParser";
 import AsideButtons from "./AsideButtons";
 import ImportModal from "./ImportModal";
@@ -9,15 +9,66 @@ import { Button } from "./ui/button";
 
 interface ToolbarProps {
 	editor: Editor;
+	htmlContent?: string;
 }
 
-export default function Toolbar({ editor }: ToolbarProps) {
+export default function Toolbar({ editor, htmlContent = "" }: ToolbarProps) {
 	const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+	const [copied, setCopied] = useState(false);
 
 	const handleImport = (html: string) => {
 		// Process HTML to convert plain text roll commands to proper span elements
 		const processedHtml = processHtmlForRollCommands(html);
 		editor.commands.setContent(processedHtml);
+	};
+
+	const handleCopy = async () => {
+		try {
+			// Strip spans from roll commands, keeping only the command syntax
+			let cleanedHtml = htmlContent;
+			
+			// Helper function to unescape HTML entities from attribute values
+			const unescapeHtml = (str: string): string => {
+				return str
+					.replace(/&amp;/g, '&')
+					.replace(/&quot;/g, '"')
+					.replace(/&lt;/g, '<')
+					.replace(/&gt;/g, '>')
+			};
+			
+			// Replace roll command spans with just the command text
+			cleanedHtml = cleanedHtml.replace(
+				/<span[^>]*data-command="([^"]*)"[^>]*class="roll-command"[^>]*>([^<]*)<\/span>/g,
+				(match, command) => {
+					return unescapeHtml(command);
+				}
+			);
+			
+			cleanedHtml = cleanedHtml.replace(
+				/<span[^>]*class="roll-command"[^>]*data-command="([^"]*)"[^>]*>([^<]*)<\/span>/g,
+				(match, command) => {
+					return unescapeHtml(command);
+				}
+			);
+			
+			cleanedHtml = cleanedHtml.replace(
+				/<span[^>]*data-command="([^"]*)"[^>]*>([^<]*)<\/span>/g,
+				(match, command) => {
+					const unescaped = unescapeHtml(command);
+					if (unescaped.match(/\[\[\/(check|skill|tool|attack)/)) {
+						return unescaped;
+					}
+					return match;
+				}
+			);
+			
+			await navigator.clipboard.writeText(cleanedHtml);
+			setCopied(true);
+			setTimeout(() => setCopied(false), 2000);
+		} catch (err) {
+			console.error('Failed to copy:', err);
+			alert('Failed to copy to clipboard');
+		}
 	};
 
 	/**
@@ -222,21 +273,20 @@ export default function Toolbar({ editor }: ToolbarProps) {
 					</div>
 				</div>
 
-				<div className="flex items-center gap-2">
-					<div className="w-px h-6 bg-border mx-2"></div>
-					<span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mr-1">
-						Foundry
-					</span>
-					<AsideButtons editor={editor} />
-				</div>
+				<AsideButtons editor={editor} />
 
-				<div className="flex items-center gap-2">
-					<div className="w-px h-6 bg-border mx-2"></div>
-					<span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mr-1">
-						D&D 5e
-					</span>
-					<RollCommandButtons editor={editor} />
-				</div>
+				<RollCommandButtons editor={editor} />
+
+				<Button
+					variant="ghost"
+					size="sm"
+					onClick={handleCopy}
+					className="bg-green-600 hover:bg-green-700 text-white"
+					title="Copy HTML"
+				>
+					<Copy className="size-4 mr-1" />
+					{copied ? 'Copied!' : 'Copy HTML'}
+				</Button>
 			</div>
 			<ImportModal
 				isOpen={isImportModalOpen}
