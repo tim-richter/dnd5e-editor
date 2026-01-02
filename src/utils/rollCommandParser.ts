@@ -6,6 +6,7 @@ import {
   type CheckEnricherOptions,
   type AttackEnricherOptions,
   type DamageEnricherOptions,
+  type HealEnricherOptions,
 } from './rollCommands'
 
 /**
@@ -49,17 +50,17 @@ function normalizeSkill(skill: string): string {
  * - [[/damage 2d6 fire average]]
  */
 export function parseRollCommand(command: string): {
-  type: 'check' | 'skill' | 'tool' | 'attack' | 'damage'
-  options: CheckEnricherOptions | AttackEnricherOptions | DamageEnricherOptions
+  type: 'check' | 'skill' | 'tool' | 'attack' | 'damage' | 'heal'
+  options: CheckEnricherOptions | AttackEnricherOptions | DamageEnricherOptions | HealEnricherOptions
   originalCommand: string
 } | null {
   // Match roll command pattern: [[/type ...]]
-  const match = command.match(/\[\[\/(check|skill|tool|attack|damage)([^\]]*)\]\]/)
+  const match = command.match(/\[\[\/(check|skill|tool|attack|damage|heal)([^\]]*)\]\]/)
   if (!match) {
     return null
   }
 
-  const type = match[1] as 'check' | 'skill' | 'tool' | 'attack' | 'damage'
+  const type = match[1] as 'check' | 'skill' | 'tool' | 'attack' | 'damage' | 'heal'
   const body = match[2].trim()
 
   if (type === 'attack') {
@@ -72,6 +73,12 @@ export function parseRollCommand(command: string): {
     return {
       type: 'damage',
       options: parseDamageCommand(body),
+      originalCommand: command,
+    }
+  } else if (type === 'heal') {
+    return {
+      type: 'heal',
+      options: parseHealCommand(body),
       originalCommand: command,
     }
   } else {
@@ -465,6 +472,103 @@ function parseDamageCommand(body: string): DamageEnricherOptions {
 
     if (typeParts.length > 0) {
       options.type = typeParts.length === 1 ? typeParts[0] : typeParts
+    }
+  }
+
+  return options
+}
+
+/**
+ * Parses a heal command body
+ */
+function parseHealCommand(body: string): HealEnricherOptions {
+  const options: HealEnricherOptions = {}
+
+  if (!body) {
+    return options
+  }
+
+  // Check for explicit key=value format
+  const hasExplicitFormat = body.includes('=')
+
+  if (hasExplicitFormat) {
+    // Parse explicit format: formula=2d4+2 type=healing average=true
+    const parts = body.split(/\s+/)
+    for (const part of parts) {
+      const [key, ...valueParts] = part.split('=')
+      const value = valueParts.join('=')
+
+      switch (key) {
+        case 'formula':
+          options.formula = value
+          break
+        case 'type':
+          // Handle temphp or temp -> both map to temp/temphp
+          if (value === 'temphp' || value === 'temp') {
+            options.type = 'temp'
+          } else if (value === 'healing') {
+            options.type = 'healing'
+          }
+          break
+        case 'average':
+          if (value === 'true') {
+            options.average = true
+          } else {
+            const numValue = parseInt(value)
+            options.average = isNaN(numValue) ? value : numValue
+          }
+          break
+        case 'activity':
+          options.activity = value
+          break
+        case 'format':
+          if (value === 'short' || value === 'long' || value === 'extended') {
+            options.format = value
+          }
+          break
+      }
+    }
+  } else {
+    // Parse shorthand format: 2d4+2, 2d4+2 temp, 10 temp, 2d4+2 average, etc.
+    const parts = body.split(/\s+/).filter((p) => p.length > 0)
+
+    if (parts.length === 0) {
+      return options
+    }
+
+    // First part is always formula
+    options.formula = parts[0]
+
+    // Remaining parts could be:
+    // - "temp" (for temporary HP)
+    // - "average" or "average=value"
+    // - "format=value"
+    let i = 1
+
+    while (i < parts.length) {
+      const part = parts[i]
+
+      if (part === 'temp' || part === 'temphp') {
+        options.type = 'temp'
+        i++
+      } else if (part === 'average') {
+        options.average = true
+        i++
+      } else if (part.startsWith('average=')) {
+        const value = part.substring(8)
+        const numValue = parseInt(value)
+        options.average = isNaN(numValue) ? value : numValue
+        i++
+      } else if (part.startsWith('format=')) {
+        const value = part.substring(7)
+        if (value === 'short' || value === 'long' || value === 'extended') {
+          options.format = value
+        }
+        i++
+      } else {
+        // Unknown part, skip it
+        i++
+      }
     }
   }
 

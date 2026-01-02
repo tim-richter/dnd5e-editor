@@ -7,10 +7,12 @@ import {
 	type AttackEnricherOptions,
 	type CheckEnricherOptions,
 	type DamageEnricherOptions,
+	type HealEnricherOptions,
 	createAbilityCheck,
 	createAttackRoll,
 	createCheckEnricher,
 	createDamageRoll,
+	createHealRoll,
 	createItemReference,
 	createSavingThrow,
 	createSkillCheck,
@@ -52,12 +54,14 @@ export default function RollCommandButtons({
 	const [showAttackDialog, setShowAttackDialog] = useState(false);
 	const [showCheckDialog, setShowCheckDialog] = useState(false);
 	const [showDamageDialog, setShowDamageDialog] = useState(false);
+	const [showHealDialog, setShowHealDialog] = useState(false);
 	const [checkDialogType, setCheckDialogType] = useState<
 		"check" | "skill" | "tool"
 	>("check");
 	const [attackOptions, setAttackOptions] = useState<AttackEnricherOptions>({});
 	const [checkOptions, setCheckOptions] = useState<CheckEnricherOptions>({});
 	const [damageOptions, setDamageOptions] = useState<DamageEnricherOptions>({});
+	const [healOptions, setHealOptions] = useState<HealEnricherOptions>({});
 	const [editingPosition, setEditingPosition] = useState<number | null>(null);
 	const [isEditing, setIsEditing] = useState(false);
 	const passiveCheckId = useId();
@@ -90,6 +94,10 @@ export default function RollCommandButtons({
 				// Open damage dialog with parsed options
 				setDamageOptions(parsed.options as DamageEnricherOptions);
 				setShowDamageDialog(true);
+			} else if (parsed.type === "heal") {
+				// Open heal dialog with parsed options
+				setHealOptions(parsed.options as HealEnricherOptions);
+				setShowHealDialog(true);
 			} else {
 				// Open check dialog with parsed options
 				setCheckDialogType(parsed.type);
@@ -170,6 +178,71 @@ export default function RollCommandButtons({
 	const handleDamageDialogCancel = () => {
 		setShowDamageDialog(false);
 		setDamageOptions({});
+		setIsEditing(false);
+		setEditingPosition(null);
+	};
+
+	const handleHealRoll = () => {
+		setShowHealDialog(true);
+		setHealOptions({});
+		setIsEditing(false);
+		setEditingPosition(null);
+	};
+
+	const handleHealDialogSubmit = () => {
+		const newCommand = createHealRoll(healOptions);
+
+		if (isEditing && editingPosition !== null) {
+			// Update existing command
+			const { state } = editor.view;
+			const { tr } = state;
+			const $pos = state.doc.resolve(editingPosition);
+
+			// Find the rollCommand node at this position
+			let nodePos = editingPosition;
+			let nodeSize = 0;
+
+			// Check if we're at the start of a rollCommand node
+			const node = $pos.nodeAfter;
+			if (node && node.type.name === "rollCommand") {
+				nodeSize = node.nodeSize;
+			} else {
+				// Try to find the node by checking parent nodes
+				for (let i = $pos.depth; i > 0; i--) {
+					const parent = $pos.node(i);
+					if (parent.type.name === "rollCommand") {
+						nodePos = $pos.start(i);
+						nodeSize = parent.nodeSize;
+						break;
+					}
+				}
+			}
+
+			if (nodeSize > 0) {
+				// Replace the node
+				tr.replaceWith(
+					nodePos,
+					nodePos + nodeSize,
+					state.schema.nodes.rollCommand.create({
+						command: newCommand,
+					}),
+				);
+				editor.view.dispatch(tr);
+			}
+		} else {
+			// Insert new command
+			insertRollCommand(newCommand);
+		}
+
+		setShowHealDialog(false);
+		setHealOptions({});
+		setIsEditing(false);
+		setEditingPosition(null);
+	};
+
+	const handleHealDialogCancel = () => {
+		setShowHealDialog(false);
+		setHealOptions({});
 		setIsEditing(false);
 		setEditingPosition(null);
 	};
@@ -445,6 +518,14 @@ export default function RollCommandButtons({
 				title="Damage Roll"
 			>
 				Damage
+			</Button>
+			<Button
+				variant="ghost"
+				size="sm"
+				onClick={handleHealRoll}
+				title="Heal Roll"
+			>
+				Heal
 			</Button>
 			<Button
 				variant="ghost"
@@ -1033,6 +1114,161 @@ export default function RollCommandButtons({
 							Cancel
 						</Button>
 						<Button onClick={handleDamageDialogSubmit}>
+							{isEditing ? "Update" : "Insert"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Heal Enricher Dialog */}
+			<Dialog
+				open={showHealDialog}
+				onOpenChange={(open) => !open && handleHealDialogCancel()}
+			>
+				<DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>
+							{isEditing ? "Edit" : "Insert"} Heal Enricher
+						</DialogTitle>
+					</DialogHeader>
+					<div className="flex flex-col gap-4">
+						<div className="flex flex-col gap-2">
+							<Label>
+								Formula (e.g., "2d4 + 2", "10", or leave empty for activity lookup):
+								<Input
+									type="text"
+									placeholder="2d4 + 2"
+									value={healOptions.formula || ""}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+										setHealOptions({
+											...healOptions,
+											formula: value || undefined,
+										});
+									}}
+								/>
+							</Label>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							<Label>
+								Heal Type (optional):
+								<Select
+									value={healOptions.type || "none"}
+									onValueChange={(value) => {
+										setHealOptions({
+											...healOptions,
+											type: value === "none" ? undefined : (value as "healing" | "temp"),
+										});
+									}}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder="None (defaults to healing)" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="none">None (defaults to healing)</SelectItem>
+										<SelectItem value="healing">Healing</SelectItem>
+										<SelectItem value="temp">Temporary HP</SelectItem>
+									</SelectContent>
+								</Select>
+							</Label>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							<Label>
+								Average (optional, leave empty for auto-calc, or enter custom value):
+								<Input
+									type="text"
+									placeholder="true or 5"
+									value={
+										healOptions.average === true
+											? "true"
+											: healOptions.average?.toString() || ""
+									}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+										if (value === "") {
+											// eslint-disable-next-line @typescript-eslint/no-unused-vars
+											const { average, ...rest } = healOptions;
+											setHealOptions(rest);
+										} else if (value.toLowerCase() === "true") {
+											setHealOptions({
+												...healOptions,
+												average: true,
+											});
+										} else {
+											const numValue = parseInt(value);
+											setHealOptions({
+												...healOptions,
+												average: Number.isNaN(numValue) ? value : numValue,
+											});
+										}
+									}}
+								/>
+							</Label>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							<Label>
+								Activity ID (optional):
+								<Input
+									type="text"
+									placeholder="jdRTb04FngE1B8cF"
+									value={healOptions.activity || ""}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+										setHealOptions({
+											...healOptions,
+											activity: value || undefined,
+										});
+									}}
+								/>
+							</Label>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							<Label>
+								Format (optional):
+								<Select
+									value={healOptions.format || "default"}
+									onValueChange={(value) => {
+										setHealOptions({
+											...healOptions,
+											format: (value === "default" ? undefined : value) as
+												| "short"
+												| "long"
+												| "extended"
+												| undefined,
+										});
+									}}
+								>
+									<SelectTrigger>
+										<SelectValue placeholder="Default (Short)" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="default">Default (Short)</SelectItem>
+										<SelectItem value="short">Short</SelectItem>
+										<SelectItem value="long">Long</SelectItem>
+										<SelectItem value="extended">Extended</SelectItem>
+									</SelectContent>
+								</Select>
+							</Label>
+						</div>
+
+						<div className="mt-2 p-3 bg-muted rounded-md border border-border">
+							<strong className="block mb-2 text-sm text-muted-foreground">
+								Preview:
+							</strong>
+							<code className="block font-mono text-xs text-foreground break-all">
+								{createHealRoll(healOptions)}
+							</code>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button variant="outline" onClick={handleHealDialogCancel}>
+							Cancel
+						</Button>
+						<Button onClick={handleHealDialogSubmit}>
 							{isEditing ? "Update" : "Insert"}
 						</Button>
 					</DialogFooter>
