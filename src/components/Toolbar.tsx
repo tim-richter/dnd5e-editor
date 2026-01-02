@@ -1,7 +1,24 @@
 import type { Editor } from "@tiptap/react";
+import {
+	AlignCenter,
+	AlignLeft,
+	AlignRight,
+	Bold,
+	Copy,
+	Download,
+	Heading1,
+	Heading2,
+	Heading3,
+	Italic,
+	Link,
+	List,
+	ListOrdered,
+	Redo,
+	Underline,
+	Undo,
+} from "lucide-react";
 import { useState } from "react";
-import { Download, Heading1, Heading2, Heading3, Bold, Italic, Underline, List, ListOrdered, Link, AlignLeft, AlignCenter, AlignRight, Undo, Redo, Copy } from "lucide-react";
-import { parseRollCommand } from "../utils/rollCommandParser";
+import { parseRollCommand } from "@/features/dnd/rolls/parser";
 import AsideButtons from "./AsideButtons";
 import ImportModal from "./ImportModal";
 import RollCommandButtons from "./RollCommandButtons";
@@ -26,31 +43,31 @@ export default function Toolbar({ editor, htmlContent = "" }: ToolbarProps) {
 		try {
 			// Strip spans from roll commands, keeping only the command syntax
 			let cleanedHtml = htmlContent;
-			
+
 			// Helper function to unescape HTML entities from attribute values
 			const unescapeHtml = (str: string): string => {
 				return str
-					.replace(/&amp;/g, '&')
+					.replace(/&amp;/g, "&")
 					.replace(/&quot;/g, '"')
-					.replace(/&lt;/g, '<')
-					.replace(/&gt;/g, '>')
+					.replace(/&lt;/g, "<")
+					.replace(/&gt;/g, ">");
 			};
-			
+
 			// Replace roll command spans with just the command text
 			cleanedHtml = cleanedHtml.replace(
 				/<span[^>]*data-command="([^"]*)"[^>]*class="roll-command"[^>]*>([^<]*)<\/span>/g,
 				(match, command) => {
 					return unescapeHtml(command);
-				}
+				},
 			);
-			
+
 			cleanedHtml = cleanedHtml.replace(
 				/<span[^>]*class="roll-command"[^>]*data-command="([^"]*)"[^>]*>([^<]*)<\/span>/g,
 				(match, command) => {
 					return unescapeHtml(command);
-				}
+				},
 			);
-			
+
 			cleanedHtml = cleanedHtml.replace(
 				/<span[^>]*data-command="([^"]*)"[^>]*>([^<]*)<\/span>/g,
 				(match, command) => {
@@ -59,15 +76,15 @@ export default function Toolbar({ editor, htmlContent = "" }: ToolbarProps) {
 						return unescaped;
 					}
 					return match;
-				}
+				},
 			);
-			
+
 			await navigator.clipboard.writeText(cleanedHtml);
 			setCopied(true);
 			setTimeout(() => setCopied(false), 2000);
 		} catch (err) {
-			console.error('Failed to copy:', err);
-			alert('Failed to copy to clipboard');
+			console.error("Failed to copy:", err);
+			alert("Failed to copy to clipboard");
 		}
 	};
 
@@ -285,7 +302,7 @@ export default function Toolbar({ editor, htmlContent = "" }: ToolbarProps) {
 					title="Copy HTML"
 				>
 					<Copy className="size-4 mr-1" />
-					{copied ? 'Copied!' : 'Copy HTML'}
+					{copied ? "Copied!" : "Copy HTML"}
 				</Button>
 			</div>
 			<ImportModal

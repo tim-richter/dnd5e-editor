@@ -1,24 +1,32 @@
 import type { Editor } from "@tiptap/react";
 import { ChevronDown } from "lucide-react";
 import { useEffect, useId, useState } from "react";
-import { parseRollCommand } from "../utils/rollCommandParser";
+import { ABILITIES } from "@/features/dnd/abilities/abilities";
 import {
-	ABILITIES,
 	type AttackEnricherOptions,
-	type CheckEnricherOptions,
-	type DamageEnricherOptions,
-	type HealEnricherOptions,
-	createAbilityCheck,
 	createAttackRoll,
+} from "@/features/dnd/rolls/attack/attackRoll";
+import {
+	type CheckEnricherOptions,
+	createAbilityCheck,
 	createCheckEnricher,
+	createSkillCheck,
+} from "@/features/dnd/rolls/check/checkRoll";
+import {
 	createDamageRoll,
+	type DamageEnricherOptions,
+} from "@/features/dnd/rolls/damage/damageRoll";
+import {
 	createHealRoll,
+	type HealEnricherOptions,
+} from "@/features/dnd/rolls/heal/healRoll";
+import { SKILLS } from "@/features/dnd/skills/skills";
+import {
 	createItemReference,
 	createSavingThrow,
-	createSkillCheck,
 	createSpellReference,
-	SKILLS,
-} from "../utils/rollCommands";
+} from "@/utils/rollCommands";
+import { parseRollCommand } from "../features/dnd/rolls/parser";
 import { Button } from "./ui/button";
 import {
 	Dialog,
@@ -970,7 +978,8 @@ export default function RollCommandButtons({
 					<div className="flex flex-col gap-4">
 						<div className="flex flex-col gap-2">
 							<Label>
-								Formula (e.g., "2d6", "1d6 + @abilities.dex.mod", or leave empty for activity lookup):
+								Formula (e.g., "2d6", "1d6 + @abilities.dex.mod", or leave empty
+								for activity lookup):
 								<Input
 									type="text"
 									placeholder="2d6"
@@ -988,7 +997,8 @@ export default function RollCommandButtons({
 
 						<div className="flex flex-col gap-2">
 							<Label>
-								Damage Type(s) (optional, separate multiple with commas or spaces):
+								Damage Type(s) (optional, separate multiple with commas or
+								spaces):
 								<Input
 									type="text"
 									placeholder="fire, cold"
@@ -1021,7 +1031,8 @@ export default function RollCommandButtons({
 
 						<div className="flex flex-col gap-2">
 							<Label>
-								Average (optional, leave empty for auto-calc, or enter custom value):
+								Average (optional, leave empty for auto-calc, or enter custom
+								value):
 								<Input
 									type="text"
 									placeholder="true or 5"
@@ -1134,7 +1145,8 @@ export default function RollCommandButtons({
 					<div className="flex flex-col gap-4">
 						<div className="flex flex-col gap-2">
 							<Label>
-								Formula (e.g., "2d4 + 2", "10", or leave empty for activity lookup):
+								Formula (e.g., "2d4 + 2", "10", or leave empty for activity
+								lookup):
 								<Input
 									type="text"
 									placeholder="2d4 + 2"
@@ -1158,7 +1170,10 @@ export default function RollCommandButtons({
 									onValueChange={(value) => {
 										setHealOptions({
 											...healOptions,
-											type: value === "none" ? undefined : (value as "healing" | "temp"),
+											type:
+												value === "none"
+													? undefined
+													: (value as "healing" | "temp"),
 										});
 									}}
 								>
@@ -1166,7 +1181,9 @@ export default function RollCommandButtons({
 										<SelectValue placeholder="None (defaults to healing)" />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="none">None (defaults to healing)</SelectItem>
+										<SelectItem value="none">
+											None (defaults to healing)
+										</SelectItem>
 										<SelectItem value="healing">Healing</SelectItem>
 										<SelectItem value="temp">Temporary HP</SelectItem>
 									</SelectContent>
@@ -1176,7 +1193,8 @@ export default function RollCommandButtons({
 
 						<div className="flex flex-col gap-2">
 							<Label>
-								Average (optional, leave empty for auto-calc, or enter custom value):
+								Average (optional, leave empty for auto-calc, or enter custom
+								value):
 								<Input
 									type="text"
 									placeholder="true or 5"

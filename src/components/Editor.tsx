@@ -1,13 +1,12 @@
+import type { Editor as TiptapEditor } from "@tiptap/react";
 import { EditorContent } from "@tiptap/react";
-import type { Editor } from "@tiptap/react";
 import { useEffect } from "react";
 
 interface EditorProps {
-	editor: Editor;
+	editor: TiptapEditor;
 }
 
 export default function Editor({ editor }: EditorProps) {
-
 	// Add click handler for roll commands
 	useEffect(() => {
 		if (!editor) return;
