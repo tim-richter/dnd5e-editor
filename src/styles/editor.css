@@ -52,6 +52,15 @@
 .ProseMirror ol {
   margin: 0.5rem 0;
   padding-left: 2rem;
+  list-style-position: outside;
+}
+
+.ProseMirror ul {
+  list-style-type: disc;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal;
 }
 
 .ProseMirror li {
