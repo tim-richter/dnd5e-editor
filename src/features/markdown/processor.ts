@@ -22,14 +22,21 @@ export async function processMarkdownToHtml(
 	const processor = unified()
 		.use(remarkParse)
 		.use(remarkWikiLink)
-		.use(remarkRehype, { allowDangerousHtml: true })
-		.use(obsidianCalloutsToAside())
-		.use(rehypeRaw)
-		.use(enhancers())
-		.use(removeByClass(["credit"]))
-		.use(removeImages())
-		.use(removeEmptyParagraphs())
-		.use(rehypeStringify, { allowDangerousHtml: true });
+		.use(remarkRehype, { allowDangerousHtml: true });
+
+	if (algorithm === "obsidian") {
+		processor.use(obsidianCalloutsToAside());
+	}
+
+	processor.use(rehypeRaw);
+	processor.use(enhancers());
+
+	if (algorithm === "default") {
+		processor.use(removeByClass(["credit"]));
+	}
+	processor.use(removeImages());
+	processor.use(removeEmptyParagraphs());
+	processor.use(rehypeStringify, { allowDangerousHtml: true });
 
 	const result = await processor.process(processed);
 	return String(result);
