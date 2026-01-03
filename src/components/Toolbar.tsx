@@ -165,7 +165,7 @@ export default function Toolbar({ editor, htmlContent = "" }: ToolbarProps) {
 							title="Import HTML"
 						>
 							<Download className="size-4 mr-1" />
-							Import
+							Import HTML
 						</Button>
 						<Button
 							variant="ghost"
