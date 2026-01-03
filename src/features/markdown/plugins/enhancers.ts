@@ -1,43 +1,55 @@
 import type { Root, Text } from "hast";
 import type { Plugin } from "unified";
 import { visit } from "unist-util-visit";
+import { normalizeAbility } from "../../dnd/abilities/abilities";
 import { normalizeSkill } from "../../dnd/skills/skills";
 
 /**
- * Checks if a node is a text node.
- */
-function isText(node: unknown): node is Text {
-	return (
-		typeof node === "object" &&
-		node !== null &&
-		"type" in node &&
-		node.type === "text"
-	);
-}
-
-/**
- * Rehype plugin to convert DC check syntax to Foundry enricher syntax.
- * Converts "DC 10 Wisdom (Perception)" to "[[/skill perception dc=10]]"
+ * Rehype plugin to convert DC check and saving throw syntax to Foundry enricher syntax.
+ * Converts:
+ * - "DC 10 Wisdom (Perception)" to "[[/skill perception dc=10]]"
+ * - "DC 10 Dexterity saving throw" to "[[/save dexterity dc=10]]"
  */
 export function enhancers(): Plugin<[], Root> {
 	// Matches "DC <number> <Ability> (<Skill>)"
 	// Example: "DC 10 Wisdom (Perception)" or "DC 15 Dex (Acrobatics)"
-	// Handles multiple spaces and various ability/skill name formats
-	// Ability is typically a single word, skill can be multiple words
 	const dcCheckPattern = /DC\s+(\d+)\s+([A-Za-z]+)\s+\(([^)]+)\)/gi;
+
+	// Matches "DC <number> <Ability> saving throw"
+	// Example: "DC 10 Dexterity saving throw" or "DC 15 Dex saving throw"
+	const savingThrowPattern = /DC\s+(\d+)\s+([A-Za-z]+)\s+saving\s+throw/gi;
 
 	return () => (tree: Root) => {
 		visit(tree, "text", (node: Text) => {
 			if (!node.value) return;
 
-			// Find all DC check matches
-			const matches = Array.from(node.value.matchAll(dcCheckPattern));
-			if (matches.length === 0) return;
-
-			// Process matches in reverse order to maintain indices
 			let updatedValue = node.value;
-			for (let i = matches.length - 1; i >= 0; i--) {
-				const match = matches[i];
+
+			// Process saving throws first (they're more specific)
+			const saveMatches = Array.from(updatedValue.matchAll(savingThrowPattern));
+			for (let i = saveMatches.length - 1; i >= 0; i--) {
+				const match = saveMatches[i];
+				if (!match || match.index === undefined) continue;
+
+				const dc = match[1];
+				const ability = match[2].trim();
+
+				// Normalize ability name
+				const normalizedAbility = normalizeAbility(ability);
+
+				// Create Foundry enricher syntax for saving throw
+				const foundrySyntax = `[[/save ${normalizedAbility} dc=${dc}]]`;
+
+				// Replace the matched text with Foundry syntax
+				const before = updatedValue.substring(0, match.index);
+				const after = updatedValue.substring(match.index + match[0].length);
+				updatedValue = before + foundrySyntax + after;
+			}
+
+			// Process DC checks (skill checks)
+			const checkMatches = Array.from(updatedValue.matchAll(dcCheckPattern));
+			for (let i = checkMatches.length - 1; i >= 0; i--) {
+				const match = checkMatches[i];
 				if (!match || match.index === undefined) continue;
 
 				const dc = match[1];
