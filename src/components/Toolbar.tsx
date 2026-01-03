@@ -23,6 +23,7 @@ import { useState } from "react";
 import { parseRollCommand } from "@/features/dnd/rolls/parser";
 import AsideButtons from "./AsideButtons";
 import ImportModal from "./ImportModal";
+import MarkdownModal from "./MarkdownModal";
 import RollCommandButtons from "./RollCommandButtons";
 import TableButtons from "./TableButtons";
 import { Button } from "./ui/button";
@@ -34,6 +35,7 @@ interface ToolbarProps {
 
 export default function Toolbar({ editor, htmlContent = "" }: ToolbarProps) {
 	const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+	const [isMarkdownModalOpen, setIsMarkdownModalOpen] = useState(false);
 	const [copied, setCopied] = useState(false);
 
 	const handleImport = (html: string) => {
@@ -164,6 +166,15 @@ export default function Toolbar({ editor, htmlContent = "" }: ToolbarProps) {
 						>
 							<Download className="size-4 mr-1" />
 							Import
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => setIsMarkdownModalOpen(true)}
+							title="Import Markdown"
+						>
+							<Download className="size-4 mr-1" />
+							Import Markdown
 						</Button>
 					</div>
 					<div className="flex gap-0.5 border-r border-border pr-2 mr-2">
@@ -368,6 +379,11 @@ export default function Toolbar({ editor, htmlContent = "" }: ToolbarProps) {
 			<ImportModal
 				isOpen={isImportModalOpen}
 				onClose={() => setIsImportModalOpen(false)}
+				onImport={handleImport}
+			/>
+			<MarkdownModal
+				isOpen={isMarkdownModalOpen}
+				onClose={() => setIsMarkdownModalOpen(false)}
 				onImport={handleImport}
 			/>
 		</>
