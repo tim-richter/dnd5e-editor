@@ -24,6 +24,7 @@ import { parseRollCommand } from "@/features/dnd/rolls/parser";
 import AsideButtons from "./AsideButtons";
 import ImportModal from "./ImportModal";
 import RollCommandButtons from "./RollCommandButtons";
+import TableButtons from "./TableButtons";
 import { Button } from "./ui/button";
 
 interface ToolbarProps {
@@ -346,6 +347,8 @@ export default function Toolbar({ editor, htmlContent = "" }: ToolbarProps) {
 						</Button>
 					</div>
 				</div>
+
+				<TableButtons editor={editor} />
 
 				<AsideButtons editor={editor} />
 
