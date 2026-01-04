@@ -77,11 +77,17 @@ export default function Toolbar({ editor, htmlContent = "" }: ToolbarProps) {
 				/<span[^>]*data-command="([^"]*)"[^>]*>([^<]*)<\/span>/g,
 				(match, command) => {
 					const unescaped = unescapeHtml(command);
-					// Handle roll commands: [[/check ...]], [[/skill ...]], etc.
+					// Handle roll commands: [[/check ...]], [[/skill ...]], [[/roll ...]], etc.
 					if (
 						unescaped.match(
-							/\[\[\/(check|skill|tool|attack|damage|heal|item|save|concentration)/,
-						)
+							/\[\[\/(check|skill|tool|attack|damage|heal|item|save|concentration|roll|publicroll|pr|gmroll|gmr|blindroll|broll|br|selfroll|sr)/,
+						) ||
+						// Also handle immediate inline rolls: [[1d4]], [[2d6 + 1]], etc.
+						(unescaped.match(/^\[\[([^/][^\]]*)\]\]/) &&
+							(/d\d+/.test(unescaped) ||
+								/^\d+$/.test(
+									unescaped.match(/^\[\[([^\]]+)\]\]/)?.[1]?.trim() || "",
+								)))
 					) {
 						return unescaped;
 					}
@@ -127,12 +133,8 @@ export default function Toolbar({ editor, htmlContent = "" }: ToolbarProps) {
 			return `<span class="roll-command" data-command="${escapedForAttr}">${escapedForText}</span>`;
 		});
 
-		// Then, handle roll command patterns: [[/check ...]], [[/skill ...]], [[/tool ...]], [[/attack ...]]
-		// This regex matches the full command including the brackets
-		const rollCommandRegex =
-			/\[\[\/(check|skill|tool|attack|damage|heal|item|save|concentration)([^\]]*)\]\]/g;
-
-		return html.replace(rollCommandRegex, (match) => {
+		// Helper function to convert a roll command match to a span element
+		const convertToSpan = (match: string): string => {
 			// Parse the command to validate it
 			const parsed = parseRollCommand(match);
 			if (!parsed) {
@@ -150,6 +152,45 @@ export default function Toolbar({ editor, htmlContent = "" }: ToolbarProps) {
 				.replace(/</g, "&lt;")
 				.replace(/>/g, "&gt;");
 			return `<span class="roll-command" data-command="${escapedForAttr}">${escapedForText}</span>`;
+		};
+
+		// First, handle deferred roll command patterns: [[/check ...]], [[/skill ...]], [[/roll ...]], etc.
+		// This regex matches the full command including the brackets
+		// Includes basic roll commands: roll, publicroll/pr, gmroll/gmr, blindroll/broll/br, selfroll/sr
+		const rollCommandRegex =
+			/\[\[\/(check|skill|tool|attack|damage|heal|item|save|concentration|roll|publicroll|pr|gmroll|gmr|blindroll|broll|br|selfroll|sr)([^\]]*)\]\]/g;
+
+		html = html.replace(rollCommandRegex, convertToSpan);
+
+		// Then, handle immediate inline rolls: [[formula]] (where formula is dice notation)
+		// This pattern matches [[1d4]], [[2d6 + 1]], etc. but not [[/roll ...]] (already handled above)
+		// Must come after deferred rolls to avoid double-matching
+		const immediateInlineRollRegex = /\[\[([^/][^\]]*)\]\](?:\{([^}]+)\})?/g;
+
+		return html.replace(immediateInlineRollRegex, (match, formula) => {
+			// Only treat as immediate inline roll if it looks like a dice formula
+			// (contains 'd' followed by digits, or is a simple number)
+			if (!/d\d+/.test(formula) && !/^\d+$/.test(formula.trim())) {
+				return match; // Not a dice formula, return as-is
+			}
+
+			// Check if this match is already inside a span (already processed)
+			// by checking if we're inside a roll-command span
+			const matchIndex = html.indexOf(match);
+			if (matchIndex === -1) {
+				return match; // Match not found (shouldn't happen, but safety check)
+			}
+
+			const beforeMatch = html.substring(0, matchIndex);
+			const lastSpanOpen = beforeMatch.lastIndexOf(
+				'<span class="roll-command"',
+			);
+			const lastSpanClose = beforeMatch.lastIndexOf("</span>");
+			if (lastSpanOpen > lastSpanClose) {
+				return match; // Already inside a roll-command span, skip
+			}
+
+			return convertToSpan(match);
 		});
 	}
 

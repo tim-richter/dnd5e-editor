@@ -10,13 +10,15 @@ import { normalizeSkill } from "../../dnd/skills/skills";
  * - "passive Wisdom (Perception) score of 16 or higher" to "[[/skill skill=perception passive=true format=long dc=16]]"
  * - "DC 10 Wisdom (Perception)" to "[[/skill perception dc=10]]"
  * - "DC 10 Dexterity saving throw" to "[[/save dexterity dc=10]]"
+ * - "1d4" or "2d6 + 1" to "[[/roll 1d4]]" or "[[/roll 2d6 + 1]]"
  */
 export function enhancers(): Plugin<[], Root> {
 	// Matches "passive <Ability> (<Skill>) score of <number> or higher"
 	// Example: "passive Wisdom (Perception) score of 16 or higher"
 	// Example: "passive Intelligence (Investigation) score of 15 or higher"
 	// Example: "passive Wisdom (Insight) score of 14 or higher"
-	const passiveCheckPattern = /passive\s+([A-Za-z]+)\s+\(([^)]+)\)\s+score\s+of\s+(\d+)\s+or\s+higher/gi;
+	const passiveCheckPattern =
+		/passive\s+([A-Za-z]+)\s+\(([^)]+)\)\s+score\s+of\s+(\d+)\s+or\s+higher/gi;
 
 	// Matches "DC <number> <Ability> (<Skill>)"
 	// Example: "DC 10 Wisdom (Perception)" or "DC 15 Dex (Acrobatics)"
@@ -26,6 +28,12 @@ export function enhancers(): Plugin<[], Root> {
 	// Example: "DC 10 Dexterity saving throw" or "DC 15 Dex saving throw"
 	const savingThrowPattern = /DC\s+(\d+)\s+([A-Za-z]+)\s+saving\s+throw/gi;
 
+	// Matches basic dice notation: "1d4", "2d6", "1d20 + 5", "2d6 + 1d4", "1d20 / 2 + 10", etc.
+	// Pattern: number + 'd' + number, optionally followed by operators and more dice/numbers
+	// Uses word boundaries to avoid matching partial words
+	// This is the least specific pattern and should be processed last
+	const basicRollPattern = /\b(\d+d\d+(?:\s*[+\-*/]\s*(?:\d+d\d+|\d+))*)\b/gi;
+
 	return () => (tree: Root) => {
 		visit(tree, "text", (node: Text) => {
 			if (!node.value) return;
@@ -33,7 +41,9 @@ export function enhancers(): Plugin<[], Root> {
 			let updatedValue = node.value;
 
 			// Process passive checks first (they're the most specific)
-			const passiveMatches = Array.from(updatedValue.matchAll(passiveCheckPattern));
+			const passiveMatches = Array.from(
+				updatedValue.matchAll(passiveCheckPattern),
+			);
 			for (let i = passiveMatches.length - 1; i >= 0; i--) {
 				const match = passiveMatches[i];
 				if (!match || match.index === undefined) continue;
@@ -90,6 +100,38 @@ export function enhancers(): Plugin<[], Root> {
 				// Create Foundry enricher syntax
 				// Use /skill format when skill is specified, as it's simpler
 				const foundrySyntax = `[[/skill ${normalizedSkill} dc=${dc}]]`;
+
+				// Replace the matched text with Foundry syntax
+				const before = updatedValue.substring(0, match.index);
+				const after = updatedValue.substring(match.index + match[0].length);
+				updatedValue = before + foundrySyntax + after;
+			}
+
+			// Process basic rolls last (least specific pattern)
+			// Only match dice notation that's not already inside Foundry syntax
+			const basicRollMatches = Array.from(
+				updatedValue.matchAll(basicRollPattern),
+			);
+			for (let i = basicRollMatches.length - 1; i >= 0; i--) {
+				const match = basicRollMatches[i];
+				if (!match || match.index === undefined) continue;
+
+				// Check if this match is already inside Foundry syntax (between [[ and ]])
+				// by checking the text before the match
+				const beforeMatch = updatedValue.substring(0, match.index);
+				const lastOpenBracket = beforeMatch.lastIndexOf("[[");
+				const lastCloseBracket = beforeMatch.lastIndexOf("]]");
+
+				// If there's an open bracket without a matching close bracket after it,
+				// we're inside Foundry syntax, so skip this match
+				if (lastOpenBracket > lastCloseBracket) {
+					continue;
+				}
+
+				const formula = match[1].trim();
+
+				// Create Foundry enricher syntax for basic roll
+				const foundrySyntax = `[[/roll ${formula}]]`;
 
 				// Replace the matched text with Foundry syntax
 				const before = updatedValue.substring(0, match.index);

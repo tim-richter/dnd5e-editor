@@ -31,7 +31,7 @@ export async function processMarkdownToHtml(
 	processor.use(rehypeRaw);
 	processor.use(enhancers());
 
-	if (algorithm === "default") {
+	if (algorithm === "obsidian") {
 		processor.use(removeByClass(["credit"]));
 	}
 	processor.use(removeImages());
