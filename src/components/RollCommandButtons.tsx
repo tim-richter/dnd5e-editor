@@ -58,6 +58,9 @@ import {
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuSeparator,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { Input } from "./ui/input";
@@ -716,266 +719,233 @@ export default function RollCommandButtons({
 		<div className="flex gap-0.5 border-r border-border pr-2 mr-2">
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
-					<Button variant="ghost" size="sm" title="Skill Check">
-						Skill Check <ChevronDown className="size-4 ml-1" />
-					</Button>
-				</DropdownMenuTrigger>
-
-				<DropdownMenuContent align="start">
-					{SKILLS.map((skill) => (
-						<DropdownMenuItem
-							key={skill}
-							onSelect={() => {
-								insertRollCommand(createSkillCheck(skill));
-							}}
-						>
-							{skill
-								.replace(/-/g, " ")
-								.replace(/\b\w/g, (l) => l.toUpperCase())}
-						</DropdownMenuItem>
-					))}
-					<DropdownMenuSeparator />
-					<DropdownMenuItem
-						onSelect={() => handleCheckEnricher("skill")}
-						className="font-semibold"
-					>
-						Advanced Options...
-					</DropdownMenuItem>
-				</DropdownMenuContent>
-			</DropdownMenu>
-
-			<DropdownMenu>
-				<DropdownMenuTrigger asChild>
-					<Button variant="ghost" size="sm" title="Ability Check">
-						Ability Check <ChevronDown className="size-4 ml-1" />
+					<Button variant="ghost" size="sm" title="Enhancers">
+						Enhancers <ChevronDown className="size-4 ml-1" />
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent
-					className="max-h-[300px] overflow-y-auto min-w-[180px]"
+					className="max-h-[600px] overflow-y-auto min-w-[200px]"
 					align="start"
 				>
-					{ABILITIES.map((ability) => (
-						<DropdownMenuItem
-							key={ability}
-							onSelect={() => {
-								insertRollCommand(createAbilityCheck(ability));
-							}}
-						>
-							{ability.charAt(0).toUpperCase() + ability.slice(1)}
-						</DropdownMenuItem>
-					))}
-					<DropdownMenuSeparator />
-					<DropdownMenuItem
-						onSelect={() => handleCheckEnricher("check")}
-						className="font-semibold"
-					>
-						Advanced Options...
-					</DropdownMenuItem>
-				</DropdownMenuContent>
-			</DropdownMenu>
+					{/* Skill Check Submenu */}
+					<DropdownMenuSub>
+						<DropdownMenuSubTrigger>Skill Check</DropdownMenuSubTrigger>
+						<DropdownMenuSubContent>
+							{SKILLS.map((skill) => (
+								<DropdownMenuItem
+									key={skill}
+									onSelect={() => {
+										insertRollCommand(createSkillCheck(skill));
+									}}
+								>
+									{skill
+										.replace(/-/g, " ")
+										.replace(/\b\w/g, (l) => l.toUpperCase())}
+								</DropdownMenuItem>
+							))}
+							<DropdownMenuSeparator />
+							<DropdownMenuItem
+								onSelect={() => handleCheckEnricher("skill")}
+								className="font-semibold"
+							>
+								Advanced Options...
+							</DropdownMenuItem>
+						</DropdownMenuSubContent>
+					</DropdownMenuSub>
 
-			<DropdownMenu>
-				<DropdownMenuTrigger asChild>
-					<Button variant="ghost" size="sm" title="Saving Throw">
-						Saving Throw <ChevronDown className="size-4 ml-1" />
-					</Button>
-				</DropdownMenuTrigger>
-				<DropdownMenuContent
-					className="max-h-[300px] overflow-y-auto min-w-[180px]"
-					align="start"
-				>
-					{ABILITIES.map((ability) => (
-						<DropdownMenuItem
-							key={ability}
-							onSelect={() => {
-								insertRollCommand(createSavingThrow(ability));
-							}}
-						>
-							{ability.charAt(0).toUpperCase() + ability.slice(1)}
-						</DropdownMenuItem>
-					))}
-					<DropdownMenuSeparator />
-					<DropdownMenuItem
-						onSelect={handleSaveRoll}
-						className="font-semibold"
-					>
-						Advanced Options...
-					</DropdownMenuItem>
-				</DropdownMenuContent>
-			</DropdownMenu>
+					{/* Ability Check Submenu */}
+					<DropdownMenuSub>
+						<DropdownMenuSubTrigger>Ability Check</DropdownMenuSubTrigger>
+						<DropdownMenuSubContent className="max-h-[300px] overflow-y-auto">
+							{ABILITIES.map((ability) => (
+								<DropdownMenuItem
+									key={ability}
+									onSelect={() => {
+										insertRollCommand(createAbilityCheck(ability));
+									}}
+								>
+									{ability.charAt(0).toUpperCase() + ability.slice(1)}
+								</DropdownMenuItem>
+							))}
+							<DropdownMenuSeparator />
+							<DropdownMenuItem
+								onSelect={() => handleCheckEnricher("check")}
+								className="font-semibold"
+							>
+								Advanced Options...
+							</DropdownMenuItem>
+						</DropdownMenuSubContent>
+					</DropdownMenuSub>
 
-			<DropdownMenu>
-				<DropdownMenuTrigger asChild>
-					<Button variant="ghost" size="sm" title="Attack Roll">
-						Attack Roll <ChevronDown className="size-4 ml-1" />
-					</Button>
-				</DropdownMenuTrigger>
-				<DropdownMenuContent
-					className="max-h-[300px] overflow-y-auto min-w-[180px]"
-					align="start"
-				>
-					<DropdownMenuItem
-						onSelect={() => {
-							insertRollCommand(createAttackRoll({ attackMode: "melee" }));
-						}}
-					>
-						Melee
-					</DropdownMenuItem>
-					<DropdownMenuItem
-						onSelect={() => {
-							insertRollCommand(createAttackRoll({ attackMode: "ranged" }));
-						}}
-					>
-						Ranged
-					</DropdownMenuItem>
-					<DropdownMenuItem
-						onSelect={() => {
-							insertRollCommand(createAttackRoll({ attackMode: "thrown" }));
-						}}
-					>
-						Thrown
-					</DropdownMenuItem>
-					<DropdownMenuSeparator />
-					<DropdownMenuItem
-						onSelect={handleAttackRoll}
-						className="font-semibold"
-					>
-						Advanced Options...
-					</DropdownMenuItem>
-				</DropdownMenuContent>
-			</DropdownMenu>
+					{/* Saving Throw Submenu */}
+					<DropdownMenuSub>
+						<DropdownMenuSubTrigger>Saving Throw</DropdownMenuSubTrigger>
+						<DropdownMenuSubContent className="max-h-[300px] overflow-y-auto">
+							{ABILITIES.map((ability) => (
+								<DropdownMenuItem
+									key={ability}
+									onSelect={() => {
+										insertRollCommand(createSavingThrow(ability));
+									}}
+								>
+									{ability.charAt(0).toUpperCase() + ability.slice(1)}
+								</DropdownMenuItem>
+							))}
+							<DropdownMenuSeparator />
+							<DropdownMenuItem
+								onSelect={handleSaveRoll}
+								className="font-semibold"
+							>
+								Advanced Options...
+							</DropdownMenuItem>
+						</DropdownMenuSubContent>
+					</DropdownMenuSub>
 
-			<Button
-				variant="ghost"
-				size="sm"
-				onClick={handleDamageRoll}
-				title="Damage Roll"
-			>
-				Damage
-			</Button>
-			<Button
-				variant="ghost"
-				size="sm"
-				onClick={handleHealRoll}
-				title="Heal Roll"
-			>
-				Heal
-			</Button>
-			<Button
-				variant="ghost"
-				size="sm"
-				onClick={handleBasicRoll}
-				title="Basic Roll"
-			>
-				Roll
-			</Button>
-			<Button
-				variant="ghost"
-				size="sm"
-				onClick={handleItemReference}
-				title="Item Reference"
-			>
-				Item
-			</Button>
+					<DropdownMenuSeparator />
 
-			<DropdownMenu>
-				<DropdownMenuTrigger asChild>
-					<Button variant="ghost" size="sm" title="Reference">
-						Reference <ChevronDown className="size-4 ml-1" />
-					</Button>
-				</DropdownMenuTrigger>
-				<DropdownMenuContent
-					className="max-h-[400px] overflow-y-auto min-w-[200px]"
-					align="start"
-				>
-					<DropdownMenuItem
-						onSelect={handleReferenceEnricher}
-						className="font-semibold"
-					>
-						Advanced Options...
-					</DropdownMenuItem>
+					{/* Attack Roll Submenu */}
+					<DropdownMenuSub>
+						<DropdownMenuSubTrigger>Attack Roll</DropdownMenuSubTrigger>
+						<DropdownMenuSubContent>
+							<DropdownMenuItem
+								onSelect={() => {
+									insertRollCommand(createAttackRoll({ attackMode: "melee" }));
+								}}
+							>
+								Melee
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onSelect={() => {
+									insertRollCommand(createAttackRoll({ attackMode: "ranged" }));
+								}}
+							>
+								Ranged
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onSelect={() => {
+									insertRollCommand(createAttackRoll({ attackMode: "thrown" }));
+								}}
+							>
+								Thrown
+							</DropdownMenuItem>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem
+								onSelect={handleAttackRoll}
+								className="font-semibold"
+							>
+								Advanced Options...
+							</DropdownMenuItem>
+						</DropdownMenuSubContent>
+					</DropdownMenuSub>
+
+					{/* Damage */}
+					<DropdownMenuItem onSelect={handleDamageRoll}>Damage</DropdownMenuItem>
+
+					{/* Heal */}
+					<DropdownMenuItem onSelect={handleHealRoll}>Heal</DropdownMenuItem>
+
+					{/* Basic Roll */}
+					<DropdownMenuItem onSelect={handleBasicRoll}>Roll</DropdownMenuItem>
+
+					{/* Item */}
+					<DropdownMenuItem onSelect={handleItemReference}>Item</DropdownMenuItem>
+
 					<DropdownMenuSeparator />
-					<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-						Conditions
-					</div>
-					{CONDITION_REFERENCES.map((condition) => (
-						<DropdownMenuItem
-							key={condition}
-							onSelect={() => {
-								insertRollCommand(
-									createReferenceEnricher({
-										category: "condition",
-										rule: condition,
-									}),
-								);
-							}}
-						>
-							{condition
-								.replace(/([A-Z])/g, " $1")
-								.replace(/^./, (str) => str.toUpperCase())
-								.trim()}
-						</DropdownMenuItem>
-					))}
-					<DropdownMenuSeparator />
-					<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-						Abilities
-					</div>
-					{ABILITY_REFERENCES.map((ability) => (
-						<DropdownMenuItem
-							key={ability}
-							onSelect={() => {
-								insertRollCommand(
-									createReferenceEnricher({
-										category: "ability",
-										rule: ability,
-									}),
-								);
-							}}
-						>
-							{ability.charAt(0).toUpperCase() + ability.slice(1)}
-						</DropdownMenuItem>
-					))}
-					<DropdownMenuSeparator />
-					<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-						Skills
-					</div>
-					{SKILL_REFERENCES.slice(0, 10).map((skill) => (
-						<DropdownMenuItem
-							key={skill}
-							onSelect={() => {
-								insertRollCommand(
-									createReferenceEnricher({
-										category: "skill",
-										rule: skill,
-									}),
-								);
-							}}
-						>
-							{skill
-								.replace(/([A-Z])/g, " $1")
-								.replace(/^./, (str) => str.toUpperCase())
-								.trim()}
-						</DropdownMenuItem>
-					))}
-					<DropdownMenuSeparator />
-					<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-						Damage Types
-					</div>
-					{DAMAGE_TYPE_REFERENCES.slice(0, 8).map((damageType) => (
-						<DropdownMenuItem
-							key={damageType}
-							onSelect={() => {
-								insertRollCommand(
-									createReferenceEnricher({
-										category: "damageType",
-										rule: damageType,
-									}),
-								);
-							}}
-						>
-							{damageType.charAt(0).toUpperCase() + damageType.slice(1)}
-						</DropdownMenuItem>
-					))}
+
+					{/* Reference Submenu */}
+					<DropdownMenuSub>
+						<DropdownMenuSubTrigger>Reference</DropdownMenuSubTrigger>
+						<DropdownMenuSubContent className="max-h-[400px] overflow-y-auto min-w-[200px]">
+							<DropdownMenuItem
+								onSelect={handleReferenceEnricher}
+								className="font-semibold"
+							>
+								Advanced Options...
+							</DropdownMenuItem>
+							<DropdownMenuSeparator />
+							<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+								Conditions
+							</div>
+							{CONDITION_REFERENCES.map((condition) => (
+								<DropdownMenuItem
+									key={condition}
+									onSelect={() => {
+										insertRollCommand(
+											createReferenceEnricher({
+												category: "condition",
+												rule: condition,
+											}),
+										);
+									}}
+								>
+									{condition
+										.replace(/([A-Z])/g, " $1")
+										.replace(/^./, (str) => str.toUpperCase())
+										.trim()}
+								</DropdownMenuItem>
+							))}
+							<DropdownMenuSeparator />
+							<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+								Abilities
+							</div>
+							{ABILITY_REFERENCES.map((ability) => (
+								<DropdownMenuItem
+									key={ability}
+									onSelect={() => {
+										insertRollCommand(
+											createReferenceEnricher({
+												category: "ability",
+												rule: ability,
+											}),
+										);
+									}}
+								>
+									{ability.charAt(0).toUpperCase() + ability.slice(1)}
+								</DropdownMenuItem>
+							))}
+							<DropdownMenuSeparator />
+							<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+								Skills
+							</div>
+							{SKILL_REFERENCES.slice(0, 10).map((skill) => (
+								<DropdownMenuItem
+									key={skill}
+									onSelect={() => {
+										insertRollCommand(
+											createReferenceEnricher({
+												category: "skill",
+												rule: skill,
+											}),
+										);
+									}}
+								>
+									{skill
+										.replace(/([A-Z])/g, " $1")
+										.replace(/^./, (str) => str.toUpperCase())
+										.trim()}
+								</DropdownMenuItem>
+							))}
+							<DropdownMenuSeparator />
+							<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+								Damage Types
+							</div>
+							{DAMAGE_TYPE_REFERENCES.slice(0, 8).map((damageType) => (
+								<DropdownMenuItem
+									key={damageType}
+									onSelect={() => {
+										insertRollCommand(
+											createReferenceEnricher({
+												category: "damageType",
+												rule: damageType,
+											}),
+										);
+									}}
+								>
+									{damageType.charAt(0).toUpperCase() + damageType.slice(1)}
+								</DropdownMenuItem>
+							))}
+						</DropdownMenuSubContent>
+					</DropdownMenuSub>
 				</DropdownMenuContent>
 			</DropdownMenu>
 
