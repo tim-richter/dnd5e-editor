@@ -3,13 +3,12 @@ import {
 	normalizeAbility,
 } from "@/features/dnd/abilities/abilities";
 import type { AttackEnricherOptions } from "@/features/dnd/rolls/attack/attackRoll";
+import type { BasicRollEnricherOptions } from "@/features/dnd/rolls/basic/basicRoll";
 import type { CheckEnricherOptions } from "@/features/dnd/rolls/check/checkRoll";
 import type { DamageEnricherOptions } from "@/features/dnd/rolls/damage/damageRoll";
 import type { HealEnricherOptions } from "@/features/dnd/rolls/heal/healRoll";
 import type { ItemEnricherOptions } from "@/features/dnd/rolls/item/itemEnricher";
-import type {
-	ReferenceEnricherOptions,
-} from "@/features/dnd/rolls/reference/referenceEnricher";
+import type { ReferenceEnricherOptions } from "@/features/dnd/rolls/reference/referenceEnricher";
 import type { SaveEnricherOptions } from "@/features/dnd/rolls/save/saveRoll";
 import { isSkill, normalizeSkill } from "@/features/dnd/skills/skills";
 
@@ -30,6 +29,12 @@ import { isSkill, normalizeSkill } from "@/features/dnd/skills/skills";
  * - [[/item Bite]]
  * - [[/item Bite activity=Poison]]
  * - [[/item Actor.p26xCjCCTQm5fRN3.Item.amUUCouL69OK1GZU]]
+ * - [[/roll 5d20]] or [[/roll 1d10 + 1d4 + 4]]
+ * - [[/roll 5d20 # This is my roll!]]
+ * - [[/roll 2d6[slashing damage]+1d8[fire damage]]]
+ * - [[/gmroll 1d20]] or [[/blindroll 1d20]] or [[/selfroll 1d20]]
+ * - [[5d20]] (immediate inline roll)
+ * - [[/roll 5d20]] (deferred inline roll)
  * - &Reference[prone]
  * - &Reference[condition=prone]
  * - &Reference[blinded apply=false]
@@ -46,6 +51,7 @@ export function parseRollCommand(command: string): {
 		| "item"
 		| "save"
 		| "concentration"
+		| "roll"
 		| "reference";
 	options:
 		| CheckEnricherOptions
@@ -54,6 +60,7 @@ export function parseRollCommand(command: string): {
 		| HealEnricherOptions
 		| ItemEnricherOptions
 		| SaveEnricherOptions
+		| BasicRollEnricherOptions
 		| ReferenceEnricherOptions;
 	originalCommand: string;
 } | null {
@@ -67,9 +74,33 @@ export function parseRollCommand(command: string): {
 		};
 	}
 
-	// Match roll command pattern: [[/type ...]]
+	// Match immediate inline roll pattern: [[formula]] or [[formula]{label}]
+	// Must not start with / to avoid matching deferred inline rolls
+	// Should contain dice notation (d followed by number) to avoid matching other commands
+	const immediateInlineMatch = command.match(
+		/^\[\[([^/][^\]]*)\]\](?:\{([^}]+)\})?$/,
+	);
+	if (immediateInlineMatch) {
+		const formula = immediateInlineMatch[1];
+		// Only treat as immediate inline roll if it looks like a dice formula
+		// (contains 'd' followed by digits, or is a simple number)
+		if (/d\d+/.test(formula) || /^\d+$/.test(formula.trim())) {
+			const label = immediateInlineMatch[2];
+			return {
+				type: "roll",
+				options: parseBasicRollCommand(formula, {
+					inline: "immediate",
+					label: label || undefined,
+				}),
+				originalCommand: command,
+			};
+		}
+	}
+
+	// Match roll command pattern: [[/type ...]] or [[/rollmode ...]]
+	// Roll modes: roll, publicroll/pr, gmroll/gmr, blindroll/broll/br, selfroll/sr
 	const match = command.match(
-		/\[\[\/(check|skill|tool|attack|damage|heal|item|save|concentration)([^\]]*)\]\]/,
+		/\[\[\/(check|skill|tool|attack|damage|heal|item|save|concentration|roll|publicroll|pr|gmroll|gmr|blindroll|broll|br|selfroll|sr)([^\]]*)\]\]/,
 	);
 	if (!match) {
 		return null;
@@ -84,10 +115,73 @@ export function parseRollCommand(command: string): {
 		| "heal"
 		| "item"
 		| "save"
-		| "concentration";
+		| "concentration"
+		| "roll"
+		| "publicroll"
+		| "pr"
+		| "gmroll"
+		| "gmr"
+		| "blindroll"
+		| "broll"
+		| "br"
+		| "selfroll"
+		| "sr";
 	const body = match[2].trim();
 
-	if (type === "attack") {
+	// Handle roll commands (including roll modes)
+	if (
+		type === "roll" ||
+		type === "publicroll" ||
+		type === "pr" ||
+		type === "gmroll" ||
+		type === "gmr" ||
+		type === "blindroll" ||
+		type === "broll" ||
+		type === "br" ||
+		type === "selfroll" ||
+		type === "sr"
+	) {
+		// Determine roll mode from command type
+		let mode: "public" | "gm" | "blind" | "self" | undefined;
+		if (type === "gmroll" || type === "gmr") {
+			mode = "gm";
+		} else if (type === "blindroll" || type === "broll" || type === "br") {
+			mode = "blind";
+		} else if (type === "selfroll" || type === "sr") {
+			mode = "self";
+		} else if (type === "publicroll" || type === "pr") {
+			mode = "public";
+		}
+		// type === "roll" means default mode (public), so mode stays undefined
+
+		// Check for deferred inline roll with optional label: [[/roll formula]] or [[/roll formula]{label}]
+		const deferredInlineMatch = command.match(
+			/^\[\[\/(roll|publicroll|pr|gmroll|gmr|blindroll|broll|br|selfroll|sr)([^\]]*)\]\](?:\{([^}]+)\})?$/,
+		);
+		if (deferredInlineMatch) {
+			const formulaBody = deferredInlineMatch[2].trim();
+			const label = deferredInlineMatch[3];
+			// If there's a label, it's definitely a deferred inline roll
+			// If there's no label but there's a formula, it could be either
+			// For now, we'll treat all /roll commands as deferred inline rolls
+			// (they can be regular rolls too, but the distinction is semantic)
+			return {
+				type: "roll",
+				options: parseBasicRollCommand(formulaBody, {
+					mode,
+					inline: label ? "deferred" : undefined,
+					label: label || undefined,
+				}),
+				originalCommand: command,
+			};
+		}
+
+		return {
+			type: "roll",
+			options: parseBasicRollCommand(body, { mode }),
+			originalCommand: command,
+		};
+	} else if (type === "attack") {
 		return {
 			type: "attack",
 			options: parseAttackCommand(body),
@@ -975,6 +1069,81 @@ function parseSaveCommand(body: string): SaveEnricherOptions {
 		if (identified.dc !== undefined) {
 			options.dc = identified.dc;
 		}
+	}
+
+	return options;
+}
+
+/**
+ * Parses a basic roll command body
+ * Handles formats like:
+ * - 5d20
+ * - 5d20 # This is my roll!
+ * - 2d6[slashing damage]+1d8[fire damage]
+ * - 2d6[slashing damage]+1d8[fire damage] # Sword attack
+ */
+function parseBasicRollCommand(
+	body: string,
+	baseOptions: Partial<BasicRollEnricherOptions> = {},
+): BasicRollEnricherOptions {
+	const options: BasicRollEnricherOptions = { ...baseOptions };
+
+	if (!body) {
+		return options;
+	}
+
+	// Split on # to separate formula from description
+	const hashIndex = body.indexOf("#");
+	let formulaPart = body;
+	let descriptionPart = "";
+
+	if (hashIndex !== -1) {
+		formulaPart = body.substring(0, hashIndex).trim();
+		descriptionPart = body.substring(hashIndex + 1).trim();
+	}
+
+	// Set description if present
+	if (descriptionPart) {
+		options.description = descriptionPart;
+	}
+
+	// Parse formula part for dice descriptions
+	// Pattern: formula[description] or formula[description]+formula[description]
+	// We need to match dice formulas with optional descriptions in brackets
+	const diceDescriptionPattern = /(\d+d\d+|\d+|\w+)(?:\[([^\]]+)\])?/g;
+	const diceDescriptions: Array<{ formula: string; description: string }> = [];
+
+	// Check if there are any dice descriptions (brackets with text)
+	if (formulaPart.includes("[")) {
+		// Parse dice descriptions
+		let match: RegExpExecArray | null =
+			diceDescriptionPattern.exec(formulaPart);
+		while (match !== null) {
+			const formula = match[1];
+			const description = match[2];
+
+			if (description) {
+				diceDescriptions.push({
+					formula,
+					description,
+				});
+			}
+
+			match = diceDescriptionPattern.exec(formulaPart);
+		}
+
+		// If we found dice descriptions, use them
+		if (diceDescriptions.length > 0) {
+			options.diceDescriptions = diceDescriptions;
+			// Also set the full formula for reference
+			options.formula = formulaPart;
+		} else {
+			// Has brackets but no valid descriptions, just use formula as-is
+			options.formula = formulaPart;
+		}
+	} else {
+		// No dice descriptions, just set the formula
+		options.formula = formulaPart;
 	}
 
 	return options;

@@ -38,7 +38,6 @@ export function enhancers(): Plugin<[], Root> {
 				const match = passiveMatches[i];
 				if (!match || match.index === undefined) continue;
 
-				const ability = match[1].trim();
 				const skill = match[2].trim();
 				const dc = match[3];
 

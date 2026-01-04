@@ -13,6 +13,10 @@ import {
 	createSkillCheck,
 } from "@/features/dnd/rolls/check/checkRoll";
 import {
+	createBasicRoll,
+	type BasicRollEnricherOptions,
+} from "@/features/dnd/rolls/basic/basicRoll";
+import {
 	createDamageRoll,
 	type DamageEnricherOptions,
 } from "@/features/dnd/rolls/damage/damageRoll";
@@ -74,6 +78,7 @@ export default function RollCommandButtons({
 	editor,
 }: RollCommandButtonsProps) {
 	const [showAttackDialog, setShowAttackDialog] = useState(false);
+	const [showBasicRollDialog, setShowBasicRollDialog] = useState(false);
 	const [showCheckDialog, setShowCheckDialog] = useState(false);
 	const [showDamageDialog, setShowDamageDialog] = useState(false);
 	const [showHealDialog, setShowHealDialog] = useState(false);
@@ -84,6 +89,8 @@ export default function RollCommandButtons({
 		"check" | "skill" | "tool"
 	>("check");
 	const [attackOptions, setAttackOptions] = useState<AttackEnricherOptions>({});
+	const [basicRollOptions, setBasicRollOptions] =
+		useState<BasicRollEnricherOptions>({});
 	const [checkOptions, setCheckOptions] = useState<CheckEnricherOptions>({});
 	const [damageOptions, setDamageOptions] = useState<DamageEnricherOptions>({});
 	const [healOptions, setHealOptions] = useState<HealEnricherOptions>({});
@@ -162,6 +169,10 @@ export default function RollCommandButtons({
 				setIsConcentration(parsed.type === "concentration");
 				setSaveOptions(parsed.options as SaveEnricherOptions);
 				setShowSaveDialog(true);
+			} else if (parsed.type === "roll") {
+				// Open basic roll dialog with parsed options
+				setBasicRollOptions(parsed.options as BasicRollEnricherOptions);
+				setShowBasicRollDialog(true);
 			}
 		};
 
@@ -636,6 +647,71 @@ export default function RollCommandButtons({
 		setIsConcentration(false);
 	};
 
+	const handleBasicRoll = () => {
+		setShowBasicRollDialog(true);
+		setBasicRollOptions({});
+		setIsEditing(false);
+		setEditingPosition(null);
+	};
+
+	const handleBasicRollDialogSubmit = () => {
+		const newCommand = createBasicRoll(basicRollOptions);
+
+		if (isEditing && editingPosition !== null) {
+			// Update existing command
+			const { state } = editor.view;
+			const { tr } = state;
+			const $pos = state.doc.resolve(editingPosition);
+
+			// Find the rollCommand node at this position
+			let nodePos = editingPosition;
+			let nodeSize = 0;
+
+			// Check if we're at the start of a rollCommand node
+			const node = $pos.nodeAfter;
+			if (node && node.type.name === "rollCommand") {
+				nodeSize = node.nodeSize;
+			} else {
+				// Try to find the node by checking parent nodes
+				for (let i = $pos.depth; i > 0; i--) {
+					const parent = $pos.node(i);
+					if (parent.type.name === "rollCommand") {
+						nodePos = $pos.start(i);
+						nodeSize = parent.nodeSize;
+						break;
+					}
+				}
+			}
+
+			if (nodeSize > 0) {
+				// Replace the node
+				tr.replaceWith(
+					nodePos,
+					nodePos + nodeSize,
+					state.schema.nodes.rollCommand.create({
+						command: newCommand,
+					}),
+				);
+				editor.view.dispatch(tr);
+			}
+		} else {
+			// Insert new command
+			insertRollCommand(newCommand);
+		}
+
+		setShowBasicRollDialog(false);
+		setBasicRollOptions({});
+		setIsEditing(false);
+		setEditingPosition(null);
+	};
+
+	const handleBasicRollDialogCancel = () => {
+		setShowBasicRollDialog(false);
+		setBasicRollOptions({});
+		setIsEditing(false);
+		setEditingPosition(null);
+	};
+
 	return (
 		<div className="flex gap-0.5 border-r border-border pr-2 mr-2">
 			<DropdownMenu>
@@ -784,6 +860,14 @@ export default function RollCommandButtons({
 				title="Heal Roll"
 			>
 				Heal
+			</Button>
+			<Button
+				variant="ghost"
+				size="sm"
+				onClick={handleBasicRoll}
+				title="Basic Roll"
+			>
+				Roll
 			</Button>
 			<Button
 				variant="ghost"
@@ -2041,6 +2125,157 @@ export default function RollCommandButtons({
 							Cancel
 						</Button>
 						<Button onClick={handleReferenceDialogSubmit}>
+							{isEditing ? "Update" : "Insert"}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Basic Roll Dialog */}
+			<Dialog
+				open={showBasicRollDialog}
+				onOpenChange={(open) => !open && handleBasicRollDialogCancel()}
+			>
+				<DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>
+							{isEditing ? "Edit" : "Insert"} Basic Roll
+						</DialogTitle>
+					</DialogHeader>
+					<div className="flex flex-col gap-4">
+						<div className="flex flex-col gap-2">
+							<Label>
+								Formula (e.g., "5d20", "1d10 + 1d4", "1d20 / 2 + 10"):
+								<Input
+									type="text"
+									placeholder="5d20"
+									value={basicRollOptions.formula || ""}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+										setBasicRollOptions({
+											...basicRollOptions,
+											formula: value || undefined,
+										});
+									}}
+								/>
+							</Label>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							<Label>
+								Roll Mode (optional):
+								<Select
+									value={basicRollOptions.mode || "public"}
+									onValueChange={(value) => {
+										setBasicRollOptions({
+											...basicRollOptions,
+											mode:
+												value === "public"
+													? undefined
+													: (value as BasicRollEnricherOptions["mode"]),
+										});
+									}}
+								>
+									<SelectTrigger>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="public">Public</SelectItem>
+										<SelectItem value="gm">GM Only</SelectItem>
+										<SelectItem value="blind">Blind</SelectItem>
+										<SelectItem value="self">Self Only</SelectItem>
+									</SelectContent>
+								</Select>
+							</Label>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							<Label>
+								Description (optional, appears after #):
+								<Input
+									type="text"
+									placeholder="Roll for damage"
+									value={basicRollOptions.description || ""}
+									onChange={(e) => {
+										const value = e.target.value.trim();
+										setBasicRollOptions({
+											...basicRollOptions,
+											description: value || undefined,
+										});
+									}}
+								/>
+							</Label>
+						</div>
+
+						<div className="flex flex-col gap-2">
+							<Label>
+								Inline Roll Type (optional):
+								<Select
+									value={
+										basicRollOptions.inline === false || !basicRollOptions.inline
+											? "false"
+											: basicRollOptions.inline
+									}
+									onValueChange={(value) => {
+										setBasicRollOptions({
+											...basicRollOptions,
+											inline:
+												value === "false"
+													? false
+													: (value as "immediate" | "deferred"),
+										});
+									}}
+								>
+									<SelectTrigger>
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="false">Regular Roll</SelectItem>
+										<SelectItem value="immediate">Immediate Inline</SelectItem>
+										<SelectItem value="deferred">Deferred Inline</SelectItem>
+									</SelectContent>
+								</Select>
+							</Label>
+							<p className="text-xs text-muted-foreground">
+								Immediate inline rolls execute immediately ([[formula]]), while
+								deferred inline rolls execute when clicked ([[/roll formula]]).
+							</p>
+						</div>
+
+						{basicRollOptions.inline && (
+							<div className="flex flex-col gap-2">
+								<Label>
+									Label (optional, appears as {`{label}`} after the roll):
+									<Input
+										type="text"
+										placeholder="Roll for damage"
+										value={basicRollOptions.label || ""}
+										onChange={(e) => {
+											const value = e.target.value.trim();
+											setBasicRollOptions({
+												...basicRollOptions,
+												label: value || undefined,
+											});
+										}}
+									/>
+								</Label>
+							</div>
+						)}
+
+						<div className="mt-2 p-3 bg-muted rounded-md border border-border">
+							<strong className="block mb-2 text-sm text-muted-foreground">
+								Preview:
+							</strong>
+							<code className="block font-mono text-xs text-foreground break-all">
+								{createBasicRoll(basicRollOptions)}
+							</code>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button variant="outline" onClick={handleBasicRollDialogCancel}>
+							Cancel
+						</Button>
+						<Button onClick={handleBasicRollDialogSubmit}>
 							{isEditing ? "Update" : "Insert"}
 						</Button>
 					</DialogFooter>
